@@ -190,3 +190,29 @@ func openAICompatKimiAuth() *coreauth.Auth {
 		},
 	}
 }
+
+func TestRegisterExecutorForAuth_GitHubCopilot(t *testing.T) {
+	manager := coreauth.NewManager(nil, nil, nil)
+	service := &Service{cfg: &config.Config{}, coreManager: manager}
+
+	service.registerExecutorForAuth(&coreauth.Auth{ID: "github-copilot-octocat.json", Provider: "github-copilot"}, false)
+
+	got, ok := manager.Executor("github-copilot")
+	if !ok {
+		t.Fatal("github-copilot executor was not registered")
+	}
+	if _, isCopilot := got.(*runtimeexecutor.GitHubCopilotExecutor); !isCopilot {
+		t.Fatalf("registered executor is %T, want *executor.GitHubCopilotExecutor", got)
+	}
+
+	found := false
+	for _, auth := range baselineExecutorAuths() {
+		if auth != nil && auth.Provider == "github-copilot" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("github-copilot missing from baselineExecutorAuths()")
+	}
+}
