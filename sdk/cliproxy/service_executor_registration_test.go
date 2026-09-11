@@ -90,6 +90,7 @@ func TestRegisterAvailableExecutors(t *testing.T) {
 		"xai",
 		"github-copilot",
 		"cursor",
+		"qwen",
 		"openai-compatibility",
 		"plugin-provider",
 	}
@@ -246,5 +247,35 @@ func TestRegisterExecutorForAuth_Cursor(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("cursor missing from baselineExecutorAuths()")
+	}
+}
+
+func TestRegisterExecutorForAuth_Qwen(t *testing.T) {
+	manager := coreauth.NewManager(nil, nil, nil)
+	service := &Service{cfg: &config.Config{}, coreManager: manager}
+
+	service.registerExecutorForAuth(&coreauth.Auth{ID: "qwen-user.json", Provider: "qwen"}, false)
+
+	got, ok := manager.Executor("qwen")
+	if !ok {
+		t.Fatal("qwen executor was not registered")
+	}
+	qwenExec, isQwen := got.(*runtimeexecutor.QwenExecutor)
+	if !isQwen {
+		t.Fatalf("registered executor is %T, want *executor.QwenExecutor", got)
+	}
+	if qwenExec.Identifier() != "qwen" {
+		t.Fatalf("Identifier() = %q, want qwen", qwenExec.Identifier())
+	}
+
+	found := false
+	for _, auth := range baselineExecutorAuths() {
+		if auth != nil && auth.Provider == "qwen" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("qwen missing from baselineExecutorAuths()")
 	}
 }

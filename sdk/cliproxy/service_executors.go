@@ -211,6 +211,7 @@ func baselineExecutorAuths() []*coreauth.Auth {
 		"xai",
 		"github-copilot",
 		"cursor",
+		"qwen",
 		"openai-compatibility",
 	}
 	auths := make([]*coreauth.Auth, 0, len(providers))
@@ -309,6 +310,8 @@ func (s *Service) registerExecutorForAuth(a *coreauth.Auth, forceReplace bool) {
 		s.coreManager.RegisterExecutor(executor.NewGitHubCopilotExecutor(cfg))
 	case "cursor":
 		s.coreManager.RegisterExecutor(executor.NewCursorExecutor(cfg))
+	case "qwen":
+		s.coreManager.RegisterExecutor(executor.NewQwenExecutor(cfg))
 	default:
 		providerKey := strings.ToLower(strings.TrimSpace(a.Provider))
 		if providerKey == "" {
