@@ -91,6 +91,7 @@ func TestRegisterAvailableExecutors(t *testing.T) {
 		"github-copilot",
 		"cursor",
 		"qwen",
+		"iflow",
 		"openai-compatibility",
 		"plugin-provider",
 	}
@@ -277,5 +278,35 @@ func TestRegisterExecutorForAuth_Qwen(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("qwen missing from baselineExecutorAuths()")
+	}
+}
+
+func TestRegisterExecutorForAuth_IFlow(t *testing.T) {
+	manager := coreauth.NewManager(nil, nil, nil)
+	service := &Service{cfg: &config.Config{}, coreManager: manager}
+
+	service.registerExecutorForAuth(&coreauth.Auth{ID: "iflow-user.json", Provider: "iflow"}, false)
+
+	got, ok := manager.Executor("iflow")
+	if !ok {
+		t.Fatal("iflow executor was not registered")
+	}
+	iflowExec, isIFlow := got.(*runtimeexecutor.IFlowExecutor)
+	if !isIFlow {
+		t.Fatalf("registered executor is %T, want *executor.IFlowExecutor", got)
+	}
+	if iflowExec.Identifier() != "iflow" {
+		t.Fatalf("Identifier() = %q, want iflow", iflowExec.Identifier())
+	}
+
+	found := false
+	for _, auth := range baselineExecutorAuths() {
+		if auth != nil && auth.Provider == "iflow" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("iflow missing from baselineExecutorAuths()")
 	}
 }
