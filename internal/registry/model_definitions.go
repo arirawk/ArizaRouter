@@ -359,6 +359,9 @@ func cloneModelInfos(models []*ModelInfo) []*ModelInfo {
 //   - iflow
 //   - codebuddy
 //   - codebuddy-intl
+//   - cline
+//   - kilo (alias: kilocode)
+//   - gitlab (alias: gitlab-duo)
 func GetStaticModelDefinitionsByChannel(channel string) []*ModelInfo {
 	key := strings.ToLower(strings.TrimSpace(channel))
 	switch key {
@@ -386,6 +389,12 @@ func GetStaticModelDefinitionsByChannel(channel string) []*ModelInfo {
 		return GetCursorModels()
 	case "kiro":
 		return GetKiroModels()
+	case "cline":
+		return GetClineModels()
+	case "kilo", "kilocode":
+		return GetKiloModels()
+	case "gitlab", "gitlab-duo":
+		return GetGitLabModels()
 	case "amazonq":
 		return GetAmazonQModels()
 	case "qwen":
@@ -421,6 +430,9 @@ func LookupStaticModelInfo(modelID string) *ModelInfo {
 		GetGitHubCopilotModels(),
 		GetCursorModels(),
 		GetKiroModels(),
+		GetClineModels(),
+		GetKiloModels(),
+		GetGitLabModels(),
 		GetAmazonQModels(),
 		GetQwenModels(),
 		GetIFlowModels(),

@@ -19,6 +19,9 @@ func init() {
 	registerRefreshLead("iflow", func() Authenticator { return NewIFlowAuthenticator() })
 	registerRefreshLead("codebuddy", func() Authenticator { return NewCodeBuddyAuthenticator() })
 	registerRefreshLead("codebuddy-intl", func() Authenticator { return NewCodeBuddyIntlAuthenticator() })
+	registerRefreshLead("cline", func() Authenticator { return NewClineAuthenticator() })
+	registerRefreshLead("kilo", func() Authenticator { return NewKiloAuthenticator() })
+	registerRefreshLead("gitlab", func() Authenticator { return NewGitLabAuthenticator() })
 }
 
 func registerRefreshLead(provider string, factory func() Authenticator) {

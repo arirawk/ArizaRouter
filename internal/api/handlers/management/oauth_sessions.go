@@ -227,6 +227,30 @@ func (s *oauthSessionStore) IsPending(state, provider string) bool {
 	return strings.EqualFold(session.Provider, provider)
 }
 
+// PendingState returns the state of the only pending session for provider.
+// It reports false when there is no pending session or more than one, so a
+// callback that omits the state parameter cannot be mis-attributed.
+func (s *oauthSessionStore) PendingState(provider string) (string, bool) {
+	provider = strings.ToLower(strings.TrimSpace(provider))
+	now := time.Now()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.purgeExpiredLocked(now)
+	found := ""
+	for state, session := range s.sessions {
+		if session.Completed || session.Status != "" || !strings.EqualFold(session.Provider, provider) {
+			continue
+		}
+		if found != "" {
+			return "", false
+		}
+		found = state
+	}
+	return found, found != ""
+}
+
 // Cancel removes a pending OAuth session so background waiters exit without saving credentials.
 // Returns true when a pending session was cancelled.
 func (s *oauthSessionStore) Cancel(state string) bool {
@@ -293,6 +317,11 @@ func GetOAuthSessionDetails(state string) (provider string, status string, isPlu
 		return "", "", false, nil, false, false
 	}
 	return session.Provider, session.Status, session.Source == oauthSessionSourcePlugin, cloneOAuthSessionMetadata(session.Metadata), session.Completed, true
+}
+
+// PendingOAuthSessionState returns the state of the single pending session for provider, if any.
+func PendingOAuthSessionState(provider string) (string, bool) {
+	return oauthSessions.PendingState(provider)
 }
 
 func IsOAuthSessionPending(state, provider string) bool {
@@ -378,6 +407,10 @@ func NormalizeOAuthProvider(provider string) (string, error) {
 		return "codebuddy", nil
 	case "codebuddy-intl":
 		return "codebuddy-intl", nil
+	case "cline":
+		return "cline", nil
+	case "gitlab":
+		return "gitlab", nil
 	default:
 		return "", errUnsupportedOAuthFlow
 	}

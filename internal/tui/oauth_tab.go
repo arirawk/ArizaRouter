@@ -32,6 +32,8 @@ var oauthProviders = []oauthProvider{
 	{"iFlow", "iflow-auth-url", "⬜", false},
 	{"CodeBuddy", "codebuddy-auth-url", "🟥", true},
 	{"CodeBuddy International", "codebuddy-intl-auth-url", "🟥", true},
+	{"Cline", "cline-auth-url", "🟧", false},
+	{"Kilo AI", "kilo-auth-url", "🟩", true},
 }
 
 // oauthTabModel handles OAuth login flows.
@@ -379,6 +381,10 @@ func (m oauthTabModel) submitCallback(callbackURL string) tea.Cmd {
 					providerKey = "codebuddy"
 				case "codebuddy-intl-auth-url":
 					providerKey = "codebuddy-intl"
+				case "cline-auth-url":
+					providerKey = "cline"
+				case "kilo-auth-url":
+					providerKey = "kilo"
 				}
 				break
 			}
