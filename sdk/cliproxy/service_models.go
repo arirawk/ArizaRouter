@@ -147,6 +147,9 @@ func (s *Service) registerModelsForAuthWithCache(ctx context.Context, a *coreaut
 	case "github-copilot":
 		models = s.githubCopilotModels(ctx, a)
 		models = applyExcludedModels(models, excluded)
+	case "kiro":
+		models = registry.GetKiroModels()
+		models = applyExcludedModels(models, excluded)
 	case "xai":
 		models = registry.GetXAIModels()
 		if entry := s.resolveConfigXAIKey(a); entry != nil {
