@@ -14,6 +14,7 @@ func init() {
 	registerRefreshLead("xai", func() Authenticator { return NewXAIAuthenticator() })
 	registerRefreshLead("github-copilot", func() Authenticator { return NewGitHubCopilotAuthenticator() })
 	registerRefreshLead("cursor", func() Authenticator { return NewCursorAuthenticator() })
+	registerRefreshLead("qwen", func() Authenticator { return NewQwenAuthenticator() })
 }
 
 func registerRefreshLead(provider string, factory func() Authenticator) {
