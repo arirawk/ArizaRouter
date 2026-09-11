@@ -354,6 +354,7 @@ func cloneModelInfos(models []*ModelInfo) []*ModelInfo {
 //   - github-copilot
 //   - cursor
 //   - qwen
+//   - iflow
 func GetStaticModelDefinitionsByChannel(channel string) []*ModelInfo {
 	key := strings.ToLower(strings.TrimSpace(channel))
 	switch key {
@@ -381,6 +382,8 @@ func GetStaticModelDefinitionsByChannel(channel string) []*ModelInfo {
 		return GetCursorModels()
 	case "qwen":
 		return GetQwenModels()
+	case "iflow":
+		return GetIFlowModels()
 	default:
 		return nil
 	}
@@ -406,6 +409,7 @@ func LookupStaticModelInfo(modelID string) *ModelInfo {
 		GetGitHubCopilotModels(),
 		GetCursorModels(),
 		GetQwenModels(),
+		GetIFlowModels(),
 	}
 	for _, models := range allModels {
 		for _, m := range models {

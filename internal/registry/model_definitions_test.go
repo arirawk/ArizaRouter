@@ -207,3 +207,22 @@ func TestGetStaticModelDefinitionsByChannelSupportsQwen(t *testing.T) {
 		t.Fatal("LookupStaticModelInfo(coder-model) = nil")
 	}
 }
+
+func TestGetStaticModelDefinitionsByChannelSupportsIFlow(t *testing.T) {
+	models := GetStaticModelDefinitionsByChannel("iflow")
+	if len(models) != 15 {
+		t.Fatalf("GetStaticModelDefinitionsByChannel(iflow) returned %d models, want 15", len(models))
+	}
+	for _, m := range models {
+		if m.OwnedBy != "iflow" || m.Type != "iflow" {
+			t.Fatalf("model %s owned_by=%q type=%q, want iflow", m.ID, m.OwnedBy, m.Type)
+		}
+	}
+	info := LookupStaticModelInfo("glm-4.6")
+	if info == nil {
+		t.Fatal("LookupStaticModelInfo(glm-4.6) = nil")
+	}
+	if info.Thinking == nil || len(info.Thinking.Levels) == 0 {
+		t.Fatalf("glm-4.6 thinking = %+v, want level-based thinking support", info.Thinking)
+	}
+}
