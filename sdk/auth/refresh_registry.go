@@ -16,6 +16,7 @@ func init() {
 	registerRefreshLead("cursor", func() Authenticator { return NewCursorAuthenticator() })
 	registerRefreshLead("kiro", func() Authenticator { return NewKiroAuthenticator() })
 	registerRefreshLead("cline", func() Authenticator { return NewClineAuthenticator() })
+	registerRefreshLead("kilo", func() Authenticator { return NewKiloAuthenticator() })
 }
 
 func registerRefreshLead(provider string, factory func() Authenticator) {

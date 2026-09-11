@@ -93,6 +93,7 @@ func main() {
 	var kiroIDCRegion string
 	var kiroIDCFlow string
 	var clineLogin bool
+	var kiloLogin bool
 	var vertexImport string
 	var vertexImportPrefix string
 	var configPath string
@@ -123,6 +124,7 @@ func main() {
 	flag.StringVar(&kiroIDCRegion, "kiro-idc-region", "", "IDC region (default: us-east-1)")
 	flag.StringVar(&kiroIDCFlow, "kiro-idc-flow", "", "IDC flow type: authcode (default) or device")
 	flag.BoolVar(&clineLogin, "cline-login", false, "Login to Cline using OAuth (browser callback)")
+	flag.BoolVar(&kiloLogin, "kilo-login", false, "Login to Kilo AI using device flow")
 	flag.StringVar(&configPath, "config", DefaultConfigPath, "Configure File Path")
 	flag.StringVar(&vertexImport, "vertex-import", "", "Import Vertex service account key JSON file")
 	flag.StringVar(&vertexImportPrefix, "vertex-import-prefix", "", "Prefix for Vertex model namespacing (use with -vertex-import)")
@@ -611,7 +613,7 @@ func main() {
 		CallbackPort: oauthCallbackPort,
 	}
 
-	commandMode := vertexImport != "" || antigravityLogin || codexLogin || codexDeviceLogin || claudeLogin || kimiLogin || xaiLogin || githubCopilotLogin || cursorLogin || kiroLogin || kiroAWSAuthCode || kiroImport || kiroIDCLogin || kiroCLILogin || clineLogin
+	commandMode := vertexImport != "" || antigravityLogin || codexLogin || codexDeviceLogin || claudeLogin || kimiLogin || xaiLogin || githubCopilotLogin || cursorLogin || kiroLogin || kiroAWSAuthCode || kiroImport || kiroIDCLogin || kiroCLILogin || clineLogin || kiloLogin
 	cloudConfigMissing := isCloudDeploy && !configFileExists
 	homeMode := configLoadedFromHome || (cfg != nil && cfg.Home.Enabled)
 	exampleAPIKeySafeMode := shouldEnableExampleAPIKeySafeMode(cfg, commandMode, tuiMode, standalone, cloudConfigMissing, homeMode)
@@ -706,6 +708,8 @@ func main() {
 		cmd.DoKiroCLILogin(cfg, options)
 	} else if clineLogin {
 		cmd.DoClineLogin(cfg, options)
+	} else if kiloLogin {
+		cmd.DoKiloLogin(cfg, options)
 	} else {
 		// In cloud deploy mode without config file, just wait for shutdown signals
 		if isCloudDeploy && !configFileExists {
