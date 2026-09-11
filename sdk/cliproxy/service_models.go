@@ -147,6 +147,9 @@ func (s *Service) registerModelsForAuthWithCache(ctx context.Context, a *coreaut
 	case "github-copilot":
 		models = s.githubCopilotModels(ctx, a)
 		models = applyExcludedModels(models, excluded)
+	case "cursor":
+		models = s.cursorModels(ctx, a)
+		models = applyExcludedModels(models, excluded)
 	case "xai":
 		models = registry.GetXAIModels()
 		if entry := s.resolveConfigXAIKey(a); entry != nil {
@@ -1060,4 +1063,22 @@ func (s *Service) githubCopilotModels(ctx context.Context, a *coreauth.Auth) []*
 	cfg := s.cfg
 	s.cfgMu.RUnlock()
 	return executor.FetchGitHubCopilotModels(fetchCtx, a, cfg)
+}
+
+// cursorModelFetchTimeout bounds the live GetUsableModels lookup so a slow
+// Cursor endpoint cannot stall auth registration; the static list is the fallback.
+const cursorModelFetchTimeout = 15 * time.Second
+
+// cursorModels prefers the live Cursor model listing for the auth's account and
+// falls back to the static definitions on any failure.
+func (s *Service) cursorModels(ctx context.Context, a *coreauth.Auth) []*ModelInfo {
+	if a == nil || a.AuthKind() == "apikey" {
+		return registry.GetCursorModels()
+	}
+	fetchCtx, cancel := context.WithTimeout(ctx, cursorModelFetchTimeout)
+	defer cancel()
+	s.cfgMu.RLock()
+	cfg := s.cfg
+	s.cfgMu.RUnlock()
+	return executor.FetchCursorModels(fetchCtx, a, cfg)
 }

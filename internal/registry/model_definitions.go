@@ -375,6 +375,8 @@ func GetStaticModelDefinitionsByChannel(channel string) []*ModelInfo {
 		return GetXAIModels()
 	case "github-copilot":
 		return GetGitHubCopilotModels()
+	case "cursor":
+		return GetCursorModels()
 	default:
 		return nil
 	}
@@ -398,6 +400,7 @@ func LookupStaticModelInfo(modelID string) *ModelInfo {
 		data.Antigravity,
 		data.XAI,
 		GetGitHubCopilotModels(),
+		GetCursorModels(),
 	}
 	for _, models := range allModels {
 		for _, m := range models {

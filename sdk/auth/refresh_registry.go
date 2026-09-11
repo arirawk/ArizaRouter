@@ -13,6 +13,7 @@ func init() {
 	registerRefreshLead("kimi", func() Authenticator { return NewKimiAuthenticator() })
 	registerRefreshLead("xai", func() Authenticator { return NewXAIAuthenticator() })
 	registerRefreshLead("github-copilot", func() Authenticator { return NewGitHubCopilotAuthenticator() })
+	registerRefreshLead("cursor", func() Authenticator { return NewCursorAuthenticator() })
 }
 
 func registerRefreshLead(provider string, factory func() Authenticator) {

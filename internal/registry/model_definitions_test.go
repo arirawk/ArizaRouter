@@ -175,3 +175,20 @@ func TestGetStaticModelDefinitionsByChannelSupportsGitHubCopilot(t *testing.T) {
 		t.Fatal("gpt-5.5 should not be an allowed GitHub Copilot model")
 	}
 }
+
+func TestGetStaticModelDefinitionsByChannelSupportsCursor(t *testing.T) {
+	models := GetStaticModelDefinitionsByChannel("cursor")
+	if len(models) != 6 {
+		t.Fatalf("GetStaticModelDefinitionsByChannel(cursor) returned %d models, want 6", len(models))
+	}
+	for _, m := range models {
+		if m.OwnedBy != "cursor" || m.Type != "cursor" {
+			t.Fatalf("model %s owned_by=%q type=%q, want cursor", m.ID, m.OwnedBy, m.Type)
+		}
+	}
+	if info := LookupStaticModelInfo("composer-2"); info == nil {
+		t.Fatal("LookupStaticModelInfo(composer-2) = nil")
+	} else if info.Thinking == nil || !info.Thinking.DynamicAllowed {
+		t.Fatalf("composer-2 thinking = %+v, want dynamic thinking support", info.Thinking)
+	}
+}

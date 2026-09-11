@@ -88,6 +88,8 @@ func TestRegisterAvailableExecutors(t *testing.T) {
 		"antigravity",
 		"kimi",
 		"xai",
+		"github-copilot",
+		"cursor",
 		"openai-compatibility",
 		"plugin-provider",
 	}
@@ -214,5 +216,35 @@ func TestRegisterExecutorForAuth_GitHubCopilot(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("github-copilot missing from baselineExecutorAuths()")
+	}
+}
+
+func TestRegisterExecutorForAuth_Cursor(t *testing.T) {
+	manager := coreauth.NewManager(nil, nil, nil)
+	service := &Service{cfg: &config.Config{}, coreManager: manager}
+
+	service.registerExecutorForAuth(&coreauth.Auth{ID: "cursor.a3f8b2c1.json", Provider: "cursor"}, false)
+
+	got, ok := manager.Executor("cursor")
+	if !ok {
+		t.Fatal("cursor executor was not registered")
+	}
+	cursorExec, isCursor := got.(*runtimeexecutor.CursorExecutor)
+	if !isCursor {
+		t.Fatalf("registered executor is %T, want *executor.CursorExecutor", got)
+	}
+	if cursorExec.Identifier() != "cursor" {
+		t.Fatalf("Identifier() = %q, want cursor", cursorExec.Identifier())
+	}
+
+	found := false
+	for _, auth := range baselineExecutorAuths() {
+		if auth != nil && auth.Provider == "cursor" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("cursor missing from baselineExecutorAuths()")
 	}
 }

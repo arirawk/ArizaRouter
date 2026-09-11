@@ -18,6 +18,7 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/auth/claude"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/auth/codex"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/auth/copilot"
+	cursorauth "github.com/router-for-me/CLIProxyAPI/v7/internal/auth/cursor"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/auth/kimi"
 	xaiauth "github.com/router-for-me/CLIProxyAPI/v7/internal/auth/xai"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/misc"
@@ -821,6 +822,91 @@ func (h *Handler) RequestGitHubCopilotToken(c *gin.Context) {
 		response["expires_in"] = deviceFlow.ExpiresIn
 	}
 	c.JSON(200, response)
+}
+
+// RequestCursorToken starts the Cursor PKCE login flow and completes it in the
+// background: the user opens the returned URL, and the poller saves the auth
+// file once Cursor reports the login as finished.
+func (h *Handler) RequestCursorToken(c *gin.Context) {
+	ctx := context.Background()
+	ctx = PopulateAuthContext(ctx, c)
+
+	fmt.Println("Initializing Cursor authentication...")
+
+	state := fmt.Sprintf("cur-%d", time.Now().UnixNano())
+	authParams, errParams := cursorauth.GenerateAuthParams()
+	if errParams != nil {
+		log.Errorf("Failed to generate Cursor auth params: %v", errParams)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate authorization url"})
+		return
+	}
+
+	RegisterOAuthSession(state, "cursor")
+
+	go func() {
+		pollCtx, cancelPoll := context.WithCancel(ctx)
+		defer cancelPoll()
+		go watchOAuthSessionCancel(pollCtx, cancelPoll, state, "cursor")
+
+		fmt.Println("Waiting for Cursor authorization...")
+		tokens, errPoll := cursorauth.PollForAuth(pollCtx, authParams.UUID, authParams.Verifier)
+		if errPoll != nil {
+			if !IsOAuthSessionPending(state, "cursor") {
+				return
+			}
+			SetOAuthSessionError(state, oauthSessionErrorWithCause("Authentication failed", errPoll))
+			fmt.Printf("Authentication failed: %v\n", errPoll)
+			return
+		}
+		if !IsOAuthSessionPending(state, "cursor") {
+			return
+		}
+
+		expiresAt := cursorauth.GetTokenExpiry(tokens.AccessToken)
+		sub := cursorauth.ParseJWTSub(tokens.AccessToken)
+		subHash := cursorauth.SubToShortHash(sub)
+
+		metadata := map[string]any{
+			"type":          "cursor",
+			"access_token":  tokens.AccessToken,
+			"refresh_token": tokens.RefreshToken,
+			"expires_at":    expiresAt.Format(time.RFC3339),
+			"timestamp":     time.Now().UnixMilli(),
+		}
+		if sub != "" {
+			metadata["sub"] = sub
+		}
+
+		fileName := cursorauth.CredentialFileName("", subHash)
+		record := &coreauth.Auth{
+			ID:       fileName,
+			Provider: "cursor",
+			FileName: fileName,
+			Label:    cursorauth.DisplayLabel("", subHash),
+			Metadata: metadata,
+		}
+		if errGuard := guardOAuthSessionPendingForSave(state, "cursor"); errGuard != nil {
+			return
+		}
+		savedPath, errSave := h.saveTokenRecord(ctx, record)
+		if errSave != nil {
+			log.Errorf("Failed to save authentication tokens: %v", errSave)
+			SetOAuthSessionError(state, "Failed to save authentication tokens")
+			return
+		}
+
+		fmt.Printf("Authentication successful! Token saved to %s\n", savedPath)
+		fmt.Println("You can now use Cursor services through this CLI")
+		CompleteOAuthSession(state)
+	}()
+
+	c.JSON(200, gin.H{
+		"status":     "ok",
+		"url":        authParams.LoginURL,
+		"state":      state,
+		"flow":       "device",
+		"expires_in": int(cursorauth.MaxPollDuration / time.Second),
+	})
 }
 
 // watchOAuthSessionCancel cancels pollCtx once the OAuth session is no longer pending.
