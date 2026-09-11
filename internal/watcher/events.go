@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	kiroauth "github.com/router-for-me/CLIProxyAPI/v7/internal/auth/kiro"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -39,10 +40,35 @@ func (w *Watcher) start(ctx context.Context) error {
 	}
 	log.Debugf("watching auth directory: %s", w.authDir)
 
+	w.watchKiroIDETokenFile()
+
 	go w.processEvents(ctx)
 
 	w.reloadClients(true, nil, false)
 	return nil
+}
+
+// watchKiroIDETokenFile additionally watches the Kiro IDE SSO cache directory so
+// that a token refreshed by the IDE is picked up by imported Kiro auths.
+func (w *Watcher) watchKiroIDETokenFile() {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Debugf("failed to get home directory for Kiro IDE token watch: %v", err)
+		return
+	}
+
+	kiroTokenDir := filepath.Join(homeDir, ".aws", "sso", "cache")
+
+	if _, statErr := os.Stat(kiroTokenDir); os.IsNotExist(statErr) {
+		log.Debugf("Kiro IDE token directory does not exist: %s", kiroTokenDir)
+		return
+	}
+
+	if errAdd := w.watcher.Add(kiroTokenDir); errAdd != nil {
+		log.Debugf("failed to watch Kiro IDE token directory %s: %v", kiroTokenDir, errAdd)
+		return
+	}
+	log.Debugf("watching Kiro IDE token directory: %s", kiroTokenDir)
 }
 
 func (w *Watcher) processEvents(ctx context.Context) {
@@ -73,8 +99,14 @@ func (w *Watcher) handleEvent(event fsnotify.Event) {
 	isConfigEvent := normalizedName == normalizedConfigPath && event.Op&configOps != 0
 	authOps := fsnotify.Create | fsnotify.Write | fsnotify.Remove | fsnotify.Rename
 	isAuthJSON := filepath.Dir(normalizedName) == normalizedAuthDir && strings.HasSuffix(normalizedName, ".json") && event.Op&authOps != 0
-	if !isConfigEvent && !isAuthJSON {
+	isKiroIDEToken := w.isKiroIDETokenFile(event.Name) && event.Op&authOps != 0
+	if !isConfigEvent && !isAuthJSON && !isKiroIDEToken {
 		// Ignore unrelated files (e.g., cookie snapshots *.cookie) and other noise.
+		return
+	}
+
+	if isKiroIDEToken {
+		w.handleKiroIDETokenChange(event)
 		return
 	}
 
@@ -147,6 +179,45 @@ func (w *Watcher) observeAuthFile(path string) {
 		if _, known := w.lastAuthHashes[normalized]; known {
 			w.lastAuthHashes[normalized] = ""
 		}
+	}
+}
+
+func (w *Watcher) isKiroIDETokenFile(path string) bool {
+	normalized := filepath.ToSlash(path)
+	return strings.HasSuffix(normalized, "kiro-auth-token.json") && strings.Contains(normalized, ".aws/sso/cache")
+}
+
+// handleKiroIDETokenChange reloads auth state after the Kiro IDE rewrites its
+// SSO cache token so imported Kiro auths pick up the refreshed access token.
+func (w *Watcher) handleKiroIDETokenChange(event fsnotify.Event) {
+	log.Debugf("Kiro IDE token file event detected: %s %s", event.Op.String(), event.Name)
+
+	if event.Op&(fsnotify.Remove|fsnotify.Rename) != 0 {
+		time.Sleep(replaceCheckDelay)
+		if _, statErr := os.Stat(event.Name); statErr != nil {
+			log.Debugf("Kiro IDE token file removed: %s", event.Name)
+			return
+		}
+	}
+
+	// Retry to ride out file lock contention while the Kiro IDE is still writing.
+	tokenData, err := kiroauth.LoadKiroIDETokenWithRetry(10, 50*time.Millisecond)
+	if err != nil {
+		log.Debugf("failed to load Kiro IDE token after change: %v", err)
+		return
+	}
+
+	log.Infof("Kiro IDE token file updated, access token refreshed (provider: %s)", tokenData.Provider)
+
+	w.refreshAuthState(true)
+
+	w.clientsMutex.RLock()
+	cfg := w.config
+	w.clientsMutex.RUnlock()
+
+	if w.reloadCallback != nil && cfg != nil {
+		log.Debugf("triggering server update callback after Kiro IDE token change")
+		w.reloadCallback(cfg)
 	}
 }
 

@@ -149,6 +149,8 @@ func (s *Service) registerModelsForAuthWithCache(ctx context.Context, a *coreaut
 		models = applyExcludedModels(models, excluded)
 	case "cursor":
 		models = s.cursorModels(ctx, a)
+	case "kiro":
+		models = registry.GetKiroModels()
 		models = applyExcludedModels(models, excluded)
 	case "xai":
 		models = registry.GetXAIModels()

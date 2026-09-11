@@ -111,6 +111,13 @@ type Config struct {
 	// GeminiKey defines Gemini API key configurations with optional routing overrides.
 	GeminiKey []GeminiKey `yaml:"gemini-api-key" json:"gemini-api-key"`
 
+	// KiroKey defines Kiro (AWS CodeWhisperer) token configurations.
+	KiroKey []KiroKey `yaml:"kiro" json:"kiro"`
+	// KiroFingerprint pins the client fingerprint used for Kiro upstream requests.
+	KiroFingerprint *KiroFingerprintConfig `yaml:"kiro-fingerprint,omitempty" json:"kiro-fingerprint,omitempty"`
+	// KiroPreferredEndpoint selects the default Kiro upstream endpoint ("kiro" or "amazonq").
+	KiroPreferredEndpoint string `yaml:"kiro-preferred-endpoint" json:"kiro-preferred-endpoint"`
+
 	// InteractionsKey defines native Google Interactions API key configurations.
 	InteractionsKey []GeminiKey `yaml:"interactions-api-key" json:"interactions-api-key"`
 

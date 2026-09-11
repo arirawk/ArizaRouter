@@ -90,6 +90,7 @@ func TestRegisterAvailableExecutors(t *testing.T) {
 		"xai",
 		"github-copilot",
 		"cursor",
+		"kiro",
 		"openai-compatibility",
 		"plugin-provider",
 	}
@@ -246,5 +247,35 @@ func TestRegisterExecutorForAuth_Cursor(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("cursor missing from baselineExecutorAuths()")
+	}
+}
+
+func TestRegisterExecutorForAuth_Kiro(t *testing.T) {
+	manager := coreauth.NewManager(nil, nil, nil)
+	service := &Service{cfg: &config.Config{}, coreManager: manager}
+
+	service.registerExecutorForAuth(&coreauth.Auth{ID: "kiro-aws-user.json", Provider: "kiro"}, false)
+
+	got, ok := manager.Executor("kiro")
+	if !ok {
+		t.Fatal("kiro executor was not registered")
+	}
+	kiroExec, isKiro := got.(*runtimeexecutor.KiroExecutor)
+	if !isKiro {
+		t.Fatalf("registered executor is %T, want *executor.KiroExecutor", got)
+	}
+	if kiroExec.Identifier() != "kiro" {
+		t.Fatalf("kiro executor Identifier() = %q, want kiro", kiroExec.Identifier())
+	}
+
+	found := false
+	for _, auth := range baselineExecutorAuths() {
+		if auth != nil && auth.Provider == "kiro" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("kiro missing from baselineExecutorAuths()")
 	}
 }

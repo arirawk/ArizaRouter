@@ -70,6 +70,10 @@ type ModelInfo struct {
 	// This is optional and currently used for Gemini thinking budget normalization.
 	Thinking *ThinkingSupport `json:"thinking,omitempty"`
 
+	// ExecutionTarget marks alias-exposed models with their upstream execution ID.
+	// Used by the Kiro executor to route user-facing kiro-* IDs to backend model IDs.
+	ExecutionTarget string `json:"-"`
+
 	// Config holds model-specific runtime overrides loaded from models.json.
 	Config *ModelConfig `json:"config,omitempty"`
 
@@ -1532,7 +1536,8 @@ func (r *ModelRegistry) convertModelToMap(model *ModelInfo, handlerType string) 
 		}
 		return result
 
-	case "claude":
+	case "claude", "kiro":
+		// Claude and Kiro both use Claude-compatible format for Claude Code clients.
 		result := map[string]any{
 			"id":       model.ID,
 			"object":   "model",

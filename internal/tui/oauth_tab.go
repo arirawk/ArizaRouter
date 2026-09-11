@@ -27,6 +27,7 @@ var oauthProviders = []oauthProvider{
 	{"xAI", "xai-auth-url", "⬛", true},
 	{"GitHub Copilot", "github-copilot-auth-url", "🐙", true},
 	{"Cursor", "cursor-auth-url", "🟦", true},
+	{"Kiro (AWS Builder ID)", "kiro-auth-url", "🟨", true},
 }
 
 // oauthTabModel handles OAuth login flows.
@@ -364,6 +365,8 @@ func (m oauthTabModel) submitCallback(callbackURL string) tea.Cmd {
 					providerKey = "github-copilot"
 				case "cursor-auth-url":
 					providerKey = "cursor"
+				case "kiro-auth-url":
+					providerKey = "kiro"
 				}
 				break
 			}

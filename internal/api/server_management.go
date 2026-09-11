@@ -181,6 +181,7 @@ func (s *Server) registerManagementRoutes() {
 		mgmt.GET("/xai-auth-url", s.mgmt.RequestXAIToken)
 		mgmt.GET("/github-copilot-auth-url", s.mgmt.RequestGitHubCopilotToken)
 		mgmt.GET("/cursor-auth-url", s.mgmt.RequestCursorToken)
+		mgmt.GET("/kiro-auth-url", s.mgmt.RequestKiroToken)
 		mgmt.GET("/get-auth-status", s.mgmt.GetAuthStatus)
 		mgmt.DELETE("/oauth-session", s.mgmt.CancelAuthSession)
 	}

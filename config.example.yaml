@@ -335,6 +335,21 @@ nonstream-keepalive-interval: 0
 # When false (default), only checks R/E prefix + base64 + first byte 0x12.
 # antigravity-signature-bypass-strict: false
 
+# Kiro (AWS CodeWhisperer) tokens. Prefer `-kiro-login` (Builder ID) or `-kiro-import`
+# (Kiro IDE token) which write auth files; static entries are also supported:
+# kiro:
+#   - token-file: "/path/to/kiro-auth-token.json" # optional: load access/refresh token from file
+#     access-token: "..."                          # optional: overrides the file value
+#     refresh-token: "..."
+#     profile-arn: "arn:aws:codewhisperer:us-east-1:123456789012:profile/XXXX" # optional
+#     region: "us-east-1"                          # optional
+#     preferred-endpoint: "kiro"                   # optional: "kiro" or "amazonq"
+#     proxy-url: ""                                # optional per-entry proxy
+# kiro-preferred-endpoint: "kiro" # global default upstream endpoint for Kiro auths
+# kiro-fingerprint: # optional: pin the client fingerprint sent on Kiro requests
+#   kiro-version: "0.8.0"
+#   os-type: "darwin"
+
 # Gemini API keys
 # gemini-api-key:
 #   - api-key: "AIzaSy...01"

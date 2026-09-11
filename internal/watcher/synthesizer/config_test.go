@@ -1268,3 +1268,41 @@ func TestConfigSynthesizer_RequestScopedErrors(t *testing.T) {
 		}
 	}
 }
+
+func TestSynthesizeKiroKeys(t *testing.T) {
+	cfg := &config.Config{
+		KiroPreferredEndpoint: "amazonq",
+		KiroKey: []config.KiroKey{
+			{AccessToken: "tok-1", RefreshToken: "ref-1", ProfileArn: "arn:aws:codewhisperer:us-east-1:123:profile/ABC", Region: "us-east-1"},
+			{AccessToken: "tok-2", PreferredEndpoint: "kiro", ProxyURL: "http://proxy.local:8080"},
+			{Comment: "missing access token"},
+		},
+	}
+	s := NewConfigSynthesizer()
+	ctx := &SynthesisContext{Config: cfg, Now: time.Now(), IDGenerator: NewStableIDGenerator()}
+
+	auths := s.synthesizeKiroKeys(ctx)
+	if len(auths) != 2 {
+		t.Fatalf("expected 2 kiro auths (entry without access token skipped), got %d", len(auths))
+	}
+	first := auths[0]
+	if first.Provider != "kiro" || first.Label != "kiro-token" || first.Status != coreauth.StatusActive {
+		t.Fatalf("unexpected first auth: %+v", first)
+	}
+	if first.Attributes["access_token"] != "tok-1" || first.Attributes["profile_arn"] != "arn:aws:codewhisperer:us-east-1:123:profile/ABC" || first.Attributes["region"] != "us-east-1" {
+		t.Fatalf("unexpected first attributes: %+v", first.Attributes)
+	}
+	if first.Attributes["preferred_endpoint"] != "amazonq" {
+		t.Fatalf("expected global preferred endpoint to apply, got %q", first.Attributes["preferred_endpoint"])
+	}
+	if first.Metadata["refresh_token"] != "ref-1" || first.Attributes["refresh_token"] != "ref-1" {
+		t.Fatalf("expected refresh token in metadata and attributes, got %+v / %+v", first.Metadata, first.Attributes)
+	}
+	second := auths[1]
+	if second.Attributes["preferred_endpoint"] != "kiro" || second.ProxyURL != "http://proxy.local:8080" {
+		t.Fatalf("unexpected second auth: %+v", second)
+	}
+	if first.ID == second.ID {
+		t.Fatalf("expected distinct auth IDs, got %q twice", first.ID)
+	}
+}
