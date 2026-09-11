@@ -401,6 +401,8 @@ func NormalizeOAuthProvider(provider string) (string, error) {
 		return "kiro", nil
 	case "cline":
 		return "cline", nil
+	case "gitlab":
+		return "gitlab", nil
 	default:
 		return "", errUnsupportedOAuthFlow
 	}

@@ -184,6 +184,9 @@ func (s *Server) registerManagementRoutes() {
 		mgmt.GET("/kiro-auth-url", s.mgmt.RequestKiroToken)
 		mgmt.GET("/cline-auth-url", s.mgmt.RequestClineToken)
 		mgmt.GET("/kilo-auth-url", s.mgmt.RequestKiloToken)
+		mgmt.GET("/gitlab-auth-url", s.mgmt.RequestGitLabPATToken)
+		mgmt.POST("/gitlab-auth-url", s.mgmt.RequestGitLabPATToken)
+		mgmt.POST("/gitlab-pat", s.mgmt.RequestGitLabPATToken)
 		mgmt.GET("/get-auth-status", s.mgmt.GetAuthStatus)
 		mgmt.DELETE("/oauth-session", s.mgmt.CancelAuthSession)
 	}
