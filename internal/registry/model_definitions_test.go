@@ -1,6 +1,9 @@
 package registry
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestGetStaticModelDefinitionsByChannelSupportsGeminiInteractions(t *testing.T) {
 	models := GetStaticModelDefinitionsByChannel("gemini-interactions")
@@ -173,5 +176,42 @@ func TestGetStaticModelDefinitionsByChannelSupportsGitHubCopilot(t *testing.T) {
 	}
 	if IsAllowedGitHubCopilotModel("gpt-5.5") {
 		t.Fatal("gpt-5.5 should not be an allowed GitHub Copilot model")
+	}
+}
+
+func TestGetStaticModelDefinitionsByChannelSupportsKiro(t *testing.T) {
+	models := GetStaticModelDefinitionsByChannel("kiro")
+	if len(models) == 0 {
+		t.Fatal("GetStaticModelDefinitionsByChannel(kiro) returned no models")
+	}
+	seen := make(map[string]bool, len(models))
+	for _, m := range models {
+		if m.OwnedBy != "aws" || m.Type != "kiro" {
+			t.Fatalf("model %s owned_by=%q type=%q, want aws/kiro", m.ID, m.OwnedBy, m.Type)
+		}
+		if !strings.HasPrefix(m.ID, "kiro-") {
+			t.Fatalf("model %s does not carry the kiro- prefix", m.ID)
+		}
+		if seen[m.ID] {
+			t.Fatalf("duplicate kiro model id %s", m.ID)
+		}
+		seen[m.ID] = true
+	}
+	for _, want := range []string{"kiro-auto", "kiro-claude-sonnet-4-5", "kiro-claude-opus-4-5-agentic"} {
+		if !seen[want] {
+			t.Fatalf("expected kiro model %s in static definitions", want)
+		}
+	}
+	if info := LookupStaticModelInfo("kiro-claude-sonnet-4-5"); info == nil || info.Type != "kiro" {
+		t.Fatalf("LookupStaticModelInfo(kiro-claude-sonnet-4-5) = %+v", info)
+	}
+	amazonq := GetStaticModelDefinitionsByChannel("amazonq")
+	if len(amazonq) == 0 {
+		t.Fatal("GetStaticModelDefinitionsByChannel(amazonq) returned no models")
+	}
+	for _, m := range amazonq {
+		if m.Type != "kiro" || !strings.HasPrefix(m.ID, "amazonq-") {
+			t.Fatalf("amazonq model %s type=%q, want kiro executor type with amazonq- prefix", m.ID, m.Type)
+		}
 	}
 }
