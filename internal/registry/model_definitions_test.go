@@ -226,3 +226,27 @@ func TestGetStaticModelDefinitionsByChannelSupportsIFlow(t *testing.T) {
 		t.Fatalf("glm-4.6 thinking = %+v, want level-based thinking support", info.Thinking)
 	}
 }
+
+func TestGetStaticModelDefinitionsByChannelSupportsCodeBuddy(t *testing.T) {
+	models := GetStaticModelDefinitionsByChannel("codebuddy")
+	if len(models) != 10 {
+		t.Fatalf("GetStaticModelDefinitionsByChannel(codebuddy) returned %d models, want 10", len(models))
+	}
+	for _, m := range models {
+		if m.Type != "codebuddy" {
+			t.Fatalf("model %s type=%q, want codebuddy", m.ID, m.Type)
+		}
+	}
+	intl := GetStaticModelDefinitionsByChannel("codebuddy-intl")
+	if len(intl) == 0 {
+		t.Fatal("GetStaticModelDefinitionsByChannel(codebuddy-intl) returned no models")
+	}
+	for _, m := range intl {
+		if m.Type != "codebuddy-intl" {
+			t.Fatalf("model %s type=%q, want codebuddy-intl", m.ID, m.Type)
+		}
+	}
+	if info := LookupStaticModelInfo("glm-5v-turbo"); info == nil {
+		t.Fatal("LookupStaticModelInfo(glm-5v-turbo) = nil")
+	}
+}

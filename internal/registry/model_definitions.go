@@ -355,6 +355,8 @@ func cloneModelInfos(models []*ModelInfo) []*ModelInfo {
 //   - cursor
 //   - qwen
 //   - iflow
+//   - codebuddy
+//   - codebuddy-intl
 func GetStaticModelDefinitionsByChannel(channel string) []*ModelInfo {
 	key := strings.ToLower(strings.TrimSpace(channel))
 	switch key {
@@ -384,6 +386,10 @@ func GetStaticModelDefinitionsByChannel(channel string) []*ModelInfo {
 		return GetQwenModels()
 	case "iflow":
 		return GetIFlowModels()
+	case "codebuddy":
+		return GetCodeBuddyModels()
+	case "codebuddy-intl":
+		return GetCodeBuddyIntlModels()
 	default:
 		return nil
 	}
@@ -410,6 +416,8 @@ func LookupStaticModelInfo(modelID string) *ModelInfo {
 		GetCursorModels(),
 		GetQwenModels(),
 		GetIFlowModels(),
+		GetCodeBuddyModels(),
+		GetCodeBuddyIntlModels(),
 	}
 	for _, models := range allModels {
 		for _, m := range models {
