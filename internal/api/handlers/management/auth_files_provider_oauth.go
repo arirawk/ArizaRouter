@@ -17,6 +17,7 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/auth/antigravity"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/auth/claude"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/auth/codex"
+	"github.com/router-for-me/CLIProxyAPI/v7/internal/auth/copilot"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/auth/kimi"
 	xaiauth "github.com/router-for-me/CLIProxyAPI/v7/internal/auth/xai"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/misc"
@@ -704,6 +705,111 @@ func (h *Handler) RequestKimiToken(c *gin.Context) {
 
 		fmt.Printf("Authentication successful! Token saved to %s\n", savedPath)
 		fmt.Println("You can now use Kimi services through this CLI")
+		CompleteOAuthSession(state)
+	}()
+
+	response := gin.H{"status": "ok", "url": authURL, "state": state, "flow": "device"}
+	if userCode := strings.TrimSpace(deviceFlow.UserCode); userCode != "" {
+		response["user_code"] = userCode
+	}
+	if deviceFlow.ExpiresIn > 0 {
+		response["expires_in"] = deviceFlow.ExpiresIn
+	}
+	c.JSON(200, response)
+}
+
+// RequestGitHubCopilotToken starts the GitHub device-code flow for Copilot and
+// completes it in the background, saving the auth file once the user authorizes.
+func (h *Handler) RequestGitHubCopilotToken(c *gin.Context) {
+	ctx := context.Background()
+	ctx = PopulateAuthContext(ctx, c)
+
+	fmt.Println("Initializing GitHub Copilot authentication...")
+
+	state := fmt.Sprintf("ghc-%d", time.Now().UnixNano())
+	copilotAuth := copilot.NewCopilotAuth(h.cfg)
+
+	deviceFlow, errStartDeviceFlow := copilotAuth.StartDeviceFlow(ctx)
+	if errStartDeviceFlow != nil {
+		log.Errorf("Failed to start GitHub Copilot device flow: %v", errStartDeviceFlow)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate authorization url"})
+		return
+	}
+	authURL := deviceFlow.VerificationURI
+
+	RegisterOAuthSession(state, "github-copilot")
+
+	go func() {
+		pollCtx, cancelPoll := context.WithCancel(ctx)
+		defer cancelPoll()
+		go watchOAuthSessionCancel(pollCtx, cancelPoll, state, "github-copilot")
+
+		fmt.Println("Waiting for GitHub authorization...")
+		authBundle, errWaitForAuthorization := copilotAuth.WaitForAuthorization(pollCtx, deviceFlow)
+		if errWaitForAuthorization != nil {
+			if !IsOAuthSessionPending(state, "github-copilot") {
+				return
+			}
+			SetOAuthSessionError(state, oauthSessionErrorWithCause("Authentication failed", errWaitForAuthorization))
+			fmt.Printf("Authentication failed: %v\n", errWaitForAuthorization)
+			return
+		}
+		if !IsOAuthSessionPending(state, "github-copilot") {
+			return
+		}
+
+		// Verify the GitHub token maps to an active Copilot subscription.
+		apiToken, errAPIToken := copilotAuth.GetCopilotAPIToken(pollCtx, authBundle.TokenData.AccessToken)
+		if errAPIToken != nil {
+			if !IsOAuthSessionPending(state, "github-copilot") {
+				return
+			}
+			SetOAuthSessionError(state, oauthSessionErrorWithCause("Failed to verify Copilot access (no active subscription?)", errAPIToken))
+			fmt.Printf("Failed to verify Copilot access: %v\n", errAPIToken)
+			return
+		}
+
+		tokenStorage := copilotAuth.CreateTokenStorage(authBundle)
+
+		metadata := map[string]any{
+			"type":         "github-copilot",
+			"username":     authBundle.Username,
+			"email":        authBundle.Email,
+			"name":         authBundle.Name,
+			"access_token": authBundle.TokenData.AccessToken,
+			"token_type":   authBundle.TokenData.TokenType,
+			"scope":        authBundle.TokenData.Scope,
+			"timestamp":    time.Now().UnixMilli(),
+		}
+		if apiToken.ExpiresAt > 0 {
+			metadata["api_token_expires_at"] = apiToken.ExpiresAt
+		}
+
+		fileName := fmt.Sprintf("github-copilot-%s.json", authBundle.Username)
+		label := authBundle.Email
+		if label == "" {
+			label = authBundle.Username
+		}
+		record := &coreauth.Auth{
+			ID:       fileName,
+			Provider: "github-copilot",
+			FileName: fileName,
+			Label:    label,
+			Storage:  tokenStorage,
+			Metadata: metadata,
+		}
+		if errGuard := guardOAuthSessionPendingForSave(state, "github-copilot"); errGuard != nil {
+			return
+		}
+		savedPath, errSave := h.saveTokenRecord(ctx, record)
+		if errSave != nil {
+			log.Errorf("Failed to save authentication tokens: %v", errSave)
+			SetOAuthSessionError(state, "Failed to save authentication tokens")
+			return
+		}
+
+		fmt.Printf("Authentication successful! Token saved to %s\n", savedPath)
+		fmt.Println("You can now use GitHub Copilot services through this CLI")
 		CompleteOAuthSession(state)
 	}()
 
