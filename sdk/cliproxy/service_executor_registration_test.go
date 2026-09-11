@@ -92,6 +92,7 @@ func TestRegisterAvailableExecutors(t *testing.T) {
 		"cursor",
 		"kiro",
 		"cline",
+		"kilo",
 		"openai-compatibility",
 		"plugin-provider",
 	}
@@ -307,5 +308,34 @@ func TestRegisterExecutorForAuth_Cline(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("cline missing from baselineExecutorAuths()")
+	}
+}
+
+func TestRegisterExecutorForAuth_Kilo(t *testing.T) {
+	manager := coreauth.NewManager(nil, nil, nil)
+	service := &Service{cfg: &config.Config{}, coreManager: manager}
+
+	service.registerExecutorForAuth(&coreauth.Auth{ID: "kilo-user@example.com.json", Provider: "kilo"}, false)
+
+	got, ok := manager.Executor("kilo")
+	if !ok {
+		t.Fatal("kilo executor was not registered")
+	}
+	if _, isKilo := got.(*runtimeexecutor.KiloExecutor); !isKilo {
+		t.Fatalf("registered executor is %T, want *executor.KiloExecutor", got)
+	}
+	if got.Identifier() != "kilo" {
+		t.Fatalf("executor identifier = %q, want kilo", got.Identifier())
+	}
+
+	found := false
+	for _, auth := range baselineExecutorAuths() {
+		if auth != nil && auth.Provider == "kilo" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("kilo missing from baselineExecutorAuths()")
 	}
 }

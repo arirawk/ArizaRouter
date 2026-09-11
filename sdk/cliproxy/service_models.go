@@ -155,6 +155,9 @@ func (s *Service) registerModelsForAuthWithCache(ctx context.Context, a *coreaut
 	case "cline":
 		models = s.clineModels(ctx, a)
 		models = applyExcludedModels(models, excluded)
+	case "kilo":
+		models = s.kiloModels(ctx, a)
+		models = applyExcludedModels(models, excluded)
 	case "xai":
 		models = registry.GetXAIModels()
 		if entry := s.resolveConfigXAIKey(a); entry != nil {
@@ -1108,4 +1111,23 @@ func (s *Service) clineModels(ctx context.Context, a *coreauth.Auth) []*ModelInf
 		return registry.GetClineModels()
 	}
 	return models
+}
+
+// kiloModelFetchTimeout bounds the live Kilo model listing so a slow
+// endpoint cannot stall auth registration; FetchKiloModels falls back to the
+// static definitions on any failure.
+const kiloModelFetchTimeout = 15 * time.Second
+
+// kiloModels prefers the live Kilo curated free model listing for the auth's
+// account and falls back to the static definitions.
+func (s *Service) kiloModels(ctx context.Context, a *coreauth.Auth) []*ModelInfo {
+	if a == nil {
+		return registry.GetKiloModels()
+	}
+	fetchCtx, cancel := context.WithTimeout(ctx, kiloModelFetchTimeout)
+	defer cancel()
+	s.cfgMu.RLock()
+	cfg := s.cfg
+	s.cfgMu.RUnlock()
+	return executor.FetchKiloModels(fetchCtx, a, cfg)
 }
