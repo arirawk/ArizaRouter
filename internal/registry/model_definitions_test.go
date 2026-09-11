@@ -154,3 +154,24 @@ func TestWithCodexBuiltinsIncludesImage25Models(t *testing.T) {
 		}
 	}
 }
+
+func TestGetStaticModelDefinitionsByChannelSupportsGitHubCopilot(t *testing.T) {
+	models := GetStaticModelDefinitionsByChannel("github-copilot")
+	if len(models) != 5 {
+		t.Fatalf("GetStaticModelDefinitionsByChannel(github-copilot) returned %d models, want 5", len(models))
+	}
+	for _, m := range models {
+		if m.OwnedBy != "github-copilot" || m.Type != "github-copilot" {
+			t.Fatalf("model %s owned_by=%q type=%q, want github-copilot", m.ID, m.OwnedBy, m.Type)
+		}
+		if !IsAllowedGitHubCopilotModel(m.ID) {
+			t.Fatalf("static model %s is not in the allow list", m.ID)
+		}
+	}
+	if info := LookupStaticModelInfo("gemini-3-flash-preview"); info == nil {
+		t.Fatal("LookupStaticModelInfo(gemini-3-flash-preview) = nil")
+	}
+	if IsAllowedGitHubCopilotModel("gpt-5.5") {
+		t.Fatal("gpt-5.5 should not be an allowed GitHub Copilot model")
+	}
+}
