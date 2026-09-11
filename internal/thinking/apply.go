@@ -27,6 +27,7 @@ var nativeProviderAppliers = map[string]ProviderApplier{
 	"antigravity": nil,
 	"kimi":        nil,
 	"xai":         nil,
+	"iflow":       nil,
 }
 
 // pluginProviderAppliers maps plugin-owned provider names to their implementations.
@@ -547,9 +548,39 @@ func extractThinkingConfig(body []byte, provider string) ThinkingConfig {
 		return extractCodexConfig(body)
 	case "kimi":
 		return extractKimiConfig(body)
+	case "iflow":
+		config := extractIFlowConfig(body)
+		if hasThinkingConfig(config) {
+			return config
+		}
+		return extractOpenAIConfig(body)
 	default:
 		return ThinkingConfig{}
 	}
+}
+
+// extractIFlowConfig extracts thinking configuration from iFlow format request body.
+//
+// iFlow API format (supports multiple model families):
+//   - GLM format: chat_template_kwargs.enable_thinking (boolean)
+//   - MiniMax format: reasoning_split (boolean)
+//
+// Returns ModeBudget with Budget=1 as a sentinel value indicating "enabled".
+// iFlow models do not use numeric budgets; they only support on/off.
+func extractIFlowConfig(body []byte) ThinkingConfig {
+	if enabled := gjson.GetBytes(body, "chat_template_kwargs.enable_thinking"); enabled.Exists() {
+		if enabled.Bool() {
+			return ThinkingConfig{Mode: ModeBudget, Budget: 1}
+		}
+		return ThinkingConfig{Mode: ModeNone, Budget: 0}
+	}
+	if split := gjson.GetBytes(body, "reasoning_split"); split.Exists() {
+		if split.Bool() {
+			return ThinkingConfig{Mode: ModeBudget, Budget: 1}
+		}
+		return ThinkingConfig{Mode: ModeNone, Budget: 0}
+	}
+	return ThinkingConfig{}
 }
 
 func hasThinkingConfig(config ThinkingConfig) bool {

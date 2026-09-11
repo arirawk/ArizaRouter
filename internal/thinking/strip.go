@@ -53,6 +53,13 @@ func StripThinkingConfig(body []byte, provider string) []byte {
 			"reasoning_effort",
 			"thinking",
 		}
+	case "iflow":
+		paths = []string{
+			"chat_template_kwargs.enable_thinking",
+			"chat_template_kwargs.clear_thinking",
+			"reasoning_split",
+			"reasoning_effort",
+		}
 	case "codex", "xai":
 		paths = []string{"reasoning"}
 	default:
