@@ -91,6 +91,7 @@ func TestRegisterAvailableExecutors(t *testing.T) {
 		"github-copilot",
 		"cursor",
 		"kiro",
+		"cline",
 		"openai-compatibility",
 		"plugin-provider",
 	}
@@ -277,5 +278,34 @@ func TestRegisterExecutorForAuth_Kiro(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("kiro missing from baselineExecutorAuths()")
+	}
+}
+
+func TestRegisterExecutorForAuth_Cline(t *testing.T) {
+	manager := coreauth.NewManager(nil, nil, nil)
+	service := &Service{cfg: &config.Config{}, coreManager: manager}
+
+	service.registerExecutorForAuth(&coreauth.Auth{ID: "cline-user@example.com.json", Provider: "cline"}, false)
+
+	got, ok := manager.Executor("cline")
+	if !ok {
+		t.Fatal("cline executor was not registered")
+	}
+	if _, isCline := got.(*runtimeexecutor.ClineExecutor); !isCline {
+		t.Fatalf("registered executor is %T, want *executor.ClineExecutor", got)
+	}
+	if got.Identifier() != "cline" {
+		t.Fatalf("executor identifier = %q, want cline", got.Identifier())
+	}
+
+	found := false
+	for _, auth := range baselineExecutorAuths() {
+		if auth != nil && auth.Provider == "cline" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("cline missing from baselineExecutorAuths()")
 	}
 }

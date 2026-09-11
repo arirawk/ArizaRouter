@@ -152,6 +152,9 @@ func (s *Service) registerModelsForAuthWithCache(ctx context.Context, a *coreaut
 	case "kiro":
 		models = registry.GetKiroModels()
 		models = applyExcludedModels(models, excluded)
+	case "cline":
+		models = s.clineModels(ctx, a)
+		models = applyExcludedModels(models, excluded)
 	case "xai":
 		models = registry.GetXAIModels()
 		if entry := s.resolveConfigXAIKey(a); entry != nil {
@@ -1083,4 +1086,26 @@ func (s *Service) cursorModels(ctx context.Context, a *coreauth.Auth) []*ModelIn
 	cfg := s.cfg
 	s.cfgMu.RUnlock()
 	return executor.FetchCursorModels(fetchCtx, a, cfg)
+}
+
+// clineModelFetchTimeout bounds the live Cline model listing so a slow
+// endpoint cannot stall auth registration; the static list is the fallback.
+const clineModelFetchTimeout = 15 * time.Second
+
+// clineModels prefers the live Cline model listing (free models only) and
+// falls back to the static definitions when the lookup yields nothing.
+func (s *Service) clineModels(ctx context.Context, a *coreauth.Auth) []*ModelInfo {
+	if a == nil {
+		return registry.GetClineModels()
+	}
+	fetchCtx, cancel := context.WithTimeout(ctx, clineModelFetchTimeout)
+	defer cancel()
+	s.cfgMu.RLock()
+	cfg := s.cfg
+	s.cfgMu.RUnlock()
+	models := executor.FetchClineModels(fetchCtx, a, cfg)
+	if len(models) == 0 {
+		return registry.GetClineModels()
+	}
+	return models
 }

@@ -212,6 +212,7 @@ func baselineExecutorAuths() []*coreauth.Auth {
 		"github-copilot",
 		"cursor",
 		"kiro",
+		"cline",
 		"openai-compatibility",
 	}
 	auths := make([]*coreauth.Auth, 0, len(providers))
@@ -312,6 +313,8 @@ func (s *Service) registerExecutorForAuth(a *coreauth.Auth, forceReplace bool) {
 		s.coreManager.RegisterExecutor(executor.NewCursorExecutor(cfg))
 	case "kiro":
 		s.coreManager.RegisterExecutor(executor.NewKiroExecutor(cfg))
+	case "cline":
+		s.coreManager.RegisterExecutor(executor.NewClineExecutor(cfg))
 	default:
 		providerKey := strings.ToLower(strings.TrimSpace(a.Provider))
 		if providerKey == "" {
