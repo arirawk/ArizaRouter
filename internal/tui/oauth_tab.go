@@ -29,6 +29,7 @@ var oauthProviders = []oauthProvider{
 	{"Cursor", "cursor-auth-url", "🟦", true},
 	{"Kiro (AWS Builder ID)", "kiro-auth-url", "🟨", true},
 	{"Cline", "cline-auth-url", "🟧", false},
+	{"Kilo AI", "kilo-auth-url", "🟩", true},
 }
 
 // oauthTabModel handles OAuth login flows.
@@ -370,6 +371,8 @@ func (m oauthTabModel) submitCallback(callbackURL string) tea.Cmd {
 					providerKey = "kiro"
 				case "cline-auth-url":
 					providerKey = "cline"
+				case "kilo-auth-url":
+					providerKey = "kilo"
 				}
 				break
 			}
