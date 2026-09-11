@@ -4,6 +4,7 @@ package cline
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,6 +23,9 @@ const (
 
 	// AuthTimeout is the timeout for OAuth authentication flow.
 	AuthTimeout = 10 * time.Minute
+
+	// CallbackPort is the localhost port Cline redirects to after login.
+	CallbackPort = 1455
 )
 
 // TokenResponse represents the response from Cline token endpoints.
@@ -164,4 +168,110 @@ func (c *ClineAuth) RefreshToken(ctx context.Context, refreshToken string) (*Tok
 // ShouldRefresh checks if the token should be refreshed (expires in less than 5 minutes).
 func ShouldRefresh(expiresAt int64) bool {
 	return time.Until(time.Unix(expiresAt, 0)) < 5*time.Minute
+}
+
+// DecodeCallbackToken tries to interpret the callback "code" parameter as a
+// base64-encoded token payload. Cline usually returns the tokens directly this
+// way; when decoding fails the caller should fall back to ExchangeCode.
+func DecodeCallbackToken(code string) (*TokenResponse, bool) {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return nil, false
+	}
+	decodeStrategies := []func(string) ([]byte, error){
+		base64.URLEncoding.DecodeString,
+		base64.RawURLEncoding.DecodeString,
+		base64.StdEncoding.DecodeString,
+		base64.RawStdEncoding.DecodeString,
+	}
+	for _, decode := range decodeStrategies {
+		decoded, errDecode := decode(code)
+		if errDecode != nil {
+			continue
+		}
+		var token TokenResponse
+		parseErr := json.Unmarshal(decoded, &token)
+		if parseErr != nil {
+			if jsonOnly := extractFirstJSONObject(decoded); len(jsonOnly) > 0 {
+				parseErr = json.Unmarshal(jsonOnly, &token)
+			}
+		}
+		if parseErr == nil && token.AccessToken != "" {
+			return &token, true
+		}
+		log.Debugf("cline: base64 decode succeeded but JSON parse failed: %v", parseErr)
+	}
+	return nil, false
+}
+
+// ParseExpiresAt converts the ISO 8601 expiresAt string Cline returns into a
+// Unix timestamp; it returns 0 when the value is empty or unparsable.
+func ParseExpiresAt(raw string) int64 {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0
+	}
+	if t, err := time.Parse(time.RFC3339Nano, raw); err == nil {
+		return t.Unix()
+	}
+	if t, err := time.Parse(time.RFC3339, raw); err == nil {
+		return t.Unix()
+	}
+	log.Debugf("cline: failed to parse expiresAt %q", raw)
+	return 0
+}
+
+func extractFirstJSONObject(input []byte) []byte {
+	start := -1
+	depth := 0
+	inString := false
+	escapeNext := false
+
+	for i, b := range input {
+		if start == -1 {
+			if b == '{' {
+				start = i
+				depth = 1
+			}
+			continue
+		}
+
+		if inString {
+			if escapeNext {
+				escapeNext = false
+				continue
+			}
+			if b == '\\' {
+				escapeNext = true
+				continue
+			}
+			if b == '"' {
+				inString = false
+			}
+			continue
+		}
+
+		if b == '"' {
+			inString = true
+			continue
+		}
+
+		if b == '{' {
+			depth++
+			continue
+		}
+
+		if b == '}' {
+			depth--
+			if depth == 0 {
+				return input[start : i+1]
+			}
+		}
+	}
+
+	if start != -1 {
+		return input[start:]
+	}
+
+	return nil
 }

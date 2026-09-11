@@ -2,8 +2,6 @@ package auth
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -19,62 +17,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func extractFirstJSONObject(input []byte) []byte {
-	start := -1
-	depth := 0
-	inString := false
-	escapeNext := false
-
-	for i, b := range input {
-		if start == -1 {
-			if b == '{' {
-				start = i
-				depth = 1
-			}
-			continue
-		}
-
-		if inString {
-			if escapeNext {
-				escapeNext = false
-				continue
-			}
-			if b == '\\' {
-				escapeNext = true
-				continue
-			}
-			if b == '"' {
-				inString = false
-			}
-			continue
-		}
-
-		if b == '"' {
-			inString = true
-			continue
-		}
-
-		if b == '{' {
-			depth++
-			continue
-		}
-
-		if b == '}' {
-			depth--
-			if depth == 0 {
-				return input[start : i+1]
-			}
-		}
-	}
-
-	if start != -1 {
-		return input[start:]
-	}
-
-	return nil
-}
-
-const defaultClineCallbackPort = 1455
+const defaultClineCallbackPort = cline.CallbackPort
 
 type ClineAuthenticator struct {
 	CallbackPort int
@@ -151,45 +94,15 @@ func (a *ClineAuthenticator) Login(ctx context.Context, cfg *config.Config, opts
 		return nil, fmt.Errorf("cline authentication failed: state mismatch")
 	}
 
-	// Cline returns the token directly in the code parameter as base64-encoded JSON
-	// Try to parse it directly first, fall back to exchange if needed
-	var tokenResp *cline.TokenResponse
-	codeStr := result.Code
-
-	// Try multiple base64 decoding strategies
-	decodeStrategies := []func(string) ([]byte, error){
-		base64.URLEncoding.DecodeString,
-		base64.RawURLEncoding.DecodeString,
-		base64.StdEncoding.DecodeString,
-		base64.RawStdEncoding.DecodeString,
-	}
-
-	for _, decode := range decodeStrategies {
-		if decoded, decodeErr := decode(codeStr); decodeErr == nil {
-			var directToken cline.TokenResponse
-			parseErr := json.Unmarshal(decoded, &directToken)
-			if parseErr != nil {
-				if jsonOnly := extractFirstJSONObject(decoded); len(jsonOnly) > 0 {
-					parseErr = json.Unmarshal(jsonOnly, &directToken)
-				}
-			}
-			if parseErr == nil && directToken.AccessToken != "" {
-				tokenResp = &directToken
-				break
-			}
-			log.Debugf("cline: base64 decode succeeded but JSON parse failed: %v", parseErr)
-		}
-	}
-
-	// Fall back to token exchange if direct parsing didn't work
-	if tokenResp == nil {
-		var err error
+	// Cline returns the token directly in the code parameter as base64-encoded JSON;
+	// fall back to a token exchange when that is not the case.
+	tokenResp, ok := cline.DecodeCallbackToken(result.Code)
+	if !ok {
 		tokenResp, err = authSvc.ExchangeCode(ctx, result.Code, callbackURL)
 		if err != nil {
 			return nil, fmt.Errorf("cline token exchange failed: %w", err)
 		}
 	}
-
 	if tokenResp == nil {
 		return nil, fmt.Errorf("cline authentication failed: no token response")
 	}
@@ -199,17 +112,7 @@ func (a *ClineAuthenticator) Login(ctx context.Context, cfg *config.Config, opts
 		return nil, fmt.Errorf("cline authentication failed: missing account email")
 	}
 
-	// Parse expiresAt from string to int64
-	var expiresAtInt int64
-	if tokenResp.ExpiresAt != "" {
-		if t, err := time.Parse(time.RFC3339Nano, tokenResp.ExpiresAt); err == nil {
-			expiresAtInt = t.Unix()
-		} else if t, err := time.Parse(time.RFC3339, tokenResp.ExpiresAt); err == nil {
-			expiresAtInt = t.Unix()
-		} else {
-			log.Debugf("cline: failed to parse expiresAt: %v", err)
-		}
-	}
+	expiresAtInt := cline.ParseExpiresAt(tokenResp.ExpiresAt)
 
 	ts := &cline.ClineTokenStorage{
 		AccessToken:  tokenResp.AccessToken,
