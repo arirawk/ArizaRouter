@@ -264,3 +264,25 @@ func TestGetStaticModelDefinitionsByChannelSupportsKilo(t *testing.T) {
 		t.Fatalf("LookupStaticModelInfo(kilo/auto) = %+v", info)
 	}
 }
+
+func TestGetStaticModelDefinitionsByChannelSupportsGitLab(t *testing.T) {
+	models := GetStaticModelDefinitionsByChannel("gitlab")
+	if len(models) < 5 {
+		t.Fatalf("GetStaticModelDefinitionsByChannel(gitlab) returned %d models, want the agentic catalog", len(models))
+	}
+	seen := map[string]bool{}
+	for _, m := range models {
+		if m.OwnedBy != "gitlab" || m.Type != "gitlab" {
+			t.Fatalf("model %s owned_by=%q type=%q, want gitlab", m.ID, m.OwnedBy, m.Type)
+		}
+		seen[m.ID] = true
+	}
+	for _, want := range []string{"gitlab-duo", "duo-chat-opus-4-6", "duo-chat-gpt-5-codex", "duo-chat-haiku-4-6"} {
+		if !seen[want] {
+			t.Fatalf("expected gitlab model %s in static definitions", want)
+		}
+	}
+	if info := LookupStaticModelInfo("duo-chat-sonnet-4-5"); info == nil || info.Type != "gitlab" {
+		t.Fatalf("LookupStaticModelInfo(duo-chat-sonnet-4-5) = %+v", info)
+	}
+}
