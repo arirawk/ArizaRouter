@@ -471,7 +471,7 @@ func modelAliasChannel(auth *Auth) string {
 // and auth kind. Returns empty string if the provider/authKind combination doesn't support
 // OAuth model alias (e.g., API key authentication).
 //
-// Built-in channels: vertex, aistudio, antigravity, claude, codex, kimi, github-copilot, kiro, cline.
+// Built-in channels: vertex, aistudio, antigravity, claude, codex, kimi, github-copilot, kiro, cline, kilo.
 // Plugin OAuth providers use their normalized provider key as the channel.
 func OAuthModelAliasChannel(provider, authKind string) string {
 	provider = strings.ToLower(strings.TrimSpace(provider))
@@ -488,7 +488,7 @@ func OAuthModelAliasChannel(provider, authKind string) string {
 		return "claude"
 	case "codex":
 		return "codex"
-	case "aistudio", "antigravity", "kimi", "github-copilot", "cursor", "kiro", "cline":
+	case "aistudio", "antigravity", "kimi", "github-copilot", "cursor", "kiro", "cline", "kilo":
 		return provider
 	default:
 		return provider

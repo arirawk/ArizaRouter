@@ -247,3 +247,20 @@ func TestGetStaticModelDefinitionsByChannelSupportsCline(t *testing.T) {
 		t.Fatalf("LookupStaticModelInfo(cline/auto) = %+v", info)
 	}
 }
+
+func TestGetStaticModelDefinitionsByChannelSupportsKilo(t *testing.T) {
+	for _, channel := range []string{"kilo", "kilocode"} {
+		models := GetStaticModelDefinitionsByChannel(channel)
+		if len(models) == 0 {
+			t.Fatalf("GetStaticModelDefinitionsByChannel(%s) returned no models", channel)
+		}
+		for _, m := range models {
+			if m.OwnedBy != "kilo" || m.Type != "kilo" {
+				t.Fatalf("model %s owned_by=%q type=%q, want kilo", m.ID, m.OwnedBy, m.Type)
+			}
+		}
+	}
+	if info := LookupStaticModelInfo("kilo/auto"); info == nil || info.Type != "kilo" {
+		t.Fatalf("LookupStaticModelInfo(kilo/auto) = %+v", info)
+	}
+}

@@ -355,6 +355,7 @@ func cloneModelInfos(models []*ModelInfo) []*ModelInfo {
 //   - kiro
 //   - amazonq
 //   - cline
+//   - kilo (alias: kilocode)
 func GetStaticModelDefinitionsByChannel(channel string) []*ModelInfo {
 	key := strings.ToLower(strings.TrimSpace(channel))
 	switch key {
@@ -384,6 +385,8 @@ func GetStaticModelDefinitionsByChannel(channel string) []*ModelInfo {
 		return GetKiroModels()
 	case "cline":
 		return GetClineModels()
+	case "kilo", "kilocode":
+		return GetKiloModels()
 	case "amazonq":
 		return GetAmazonQModels()
 	default:
@@ -412,6 +415,7 @@ func LookupStaticModelInfo(modelID string) *ModelInfo {
 		GetCursorModels(),
 		GetKiroModels(),
 		GetClineModels(),
+		GetKiloModels(),
 		GetAmazonQModels(),
 	}
 	for _, models := range allModels {

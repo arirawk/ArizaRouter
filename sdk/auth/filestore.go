@@ -242,6 +242,9 @@ func (s *FileTokenStore) readAuthFiles(path, baseDir string) ([]*cliproxyauth.Au
 	}
 	provider, _ := metadata["type"].(string)
 	provider = strings.TrimSpace(provider)
+	if canonical := canonicalizeAuthProvider(provider); canonical == "kilo" {
+		provider = canonical
+	}
 	if strings.EqualFold(provider, "gemini") {
 		return nil, nil
 	}
