@@ -91,6 +91,10 @@ func TestRegisterAvailableExecutors(t *testing.T) {
 		"github-copilot",
 		"cursor",
 		"kiro",
+		"qwen",
+		"iflow",
+		"codebuddy",
+		"codebuddy-intl",
 		"openai-compatibility",
 		"plugin-provider",
 	}
@@ -277,5 +281,97 @@ func TestRegisterExecutorForAuth_Kiro(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("kiro missing from baselineExecutorAuths()")
+	}
+}
+
+func TestRegisterExecutorForAuth_Qwen(t *testing.T) {
+	manager := coreauth.NewManager(nil, nil, nil)
+	service := &Service{cfg: &config.Config{}, coreManager: manager}
+
+	service.registerExecutorForAuth(&coreauth.Auth{ID: "qwen-user.json", Provider: "qwen"}, false)
+
+	got, ok := manager.Executor("qwen")
+	if !ok {
+		t.Fatal("qwen executor was not registered")
+	}
+	qwenExec, isQwen := got.(*runtimeexecutor.QwenExecutor)
+	if !isQwen {
+		t.Fatalf("registered executor is %T, want *executor.QwenExecutor", got)
+	}
+	if qwenExec.Identifier() != "qwen" {
+		t.Fatalf("Identifier() = %q, want qwen", qwenExec.Identifier())
+	}
+
+	found := false
+	for _, auth := range baselineExecutorAuths() {
+		if auth != nil && auth.Provider == "qwen" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("qwen missing from baselineExecutorAuths()")
+	}
+}
+
+func TestRegisterExecutorForAuth_IFlow(t *testing.T) {
+	manager := coreauth.NewManager(nil, nil, nil)
+	service := &Service{cfg: &config.Config{}, coreManager: manager}
+
+	service.registerExecutorForAuth(&coreauth.Auth{ID: "iflow-user.json", Provider: "iflow"}, false)
+
+	got, ok := manager.Executor("iflow")
+	if !ok {
+		t.Fatal("iflow executor was not registered")
+	}
+	iflowExec, isIFlow := got.(*runtimeexecutor.IFlowExecutor)
+	if !isIFlow {
+		t.Fatalf("registered executor is %T, want *executor.IFlowExecutor", got)
+	}
+	if iflowExec.Identifier() != "iflow" {
+		t.Fatalf("Identifier() = %q, want iflow", iflowExec.Identifier())
+	}
+
+	found := false
+	for _, auth := range baselineExecutorAuths() {
+		if auth != nil && auth.Provider == "iflow" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("iflow missing from baselineExecutorAuths()")
+	}
+}
+
+func TestRegisterExecutorForAuth_CodeBuddy(t *testing.T) {
+	for _, provider := range []string{"codebuddy", "codebuddy-intl"} {
+		manager := coreauth.NewManager(nil, nil, nil)
+		service := &Service{cfg: &config.Config{}, coreManager: manager}
+
+		service.registerExecutorForAuth(&coreauth.Auth{ID: provider + "-user.json", Provider: provider}, false)
+
+		got, ok := manager.Executor(provider)
+		if !ok {
+			t.Fatalf("%s executor was not registered", provider)
+		}
+		cbExec, isCodeBuddy := got.(*runtimeexecutor.CodeBuddyExecutor)
+		if !isCodeBuddy {
+			t.Fatalf("registered executor is %T, want *executor.CodeBuddyExecutor", got)
+		}
+		if cbExec.Identifier() != provider {
+			t.Fatalf("Identifier() = %q, want %s", cbExec.Identifier(), provider)
+		}
+
+		found := false
+		for _, auth := range baselineExecutorAuths() {
+			if auth != nil && auth.Provider == provider {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("%s missing from baselineExecutorAuths()", provider)
+		}
 	}
 }

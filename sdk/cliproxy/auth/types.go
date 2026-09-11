@@ -584,6 +584,15 @@ func (a *Auth) AccountInfo() (string, string) {
 	if a == nil {
 		return "", ""
 	}
+	// iFlow OAuth accounts carry the derived API key as an attribute; report the
+	// account email rather than the key when one is present.
+	if strings.EqualFold(strings.TrimSpace(a.Provider), "iflow") && a.Metadata != nil {
+		if email, ok := a.Metadata["email"].(string); ok {
+			if email = strings.TrimSpace(email); email != "" {
+				return "oauth", email
+			}
+		}
+	}
 	switch a.AuthKind() {
 	case AuthKindOAuth:
 		if a.Metadata != nil {

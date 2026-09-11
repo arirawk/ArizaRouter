@@ -182,6 +182,11 @@ func (s *Server) registerManagementRoutes() {
 		mgmt.GET("/github-copilot-auth-url", s.mgmt.RequestGitHubCopilotToken)
 		mgmt.GET("/cursor-auth-url", s.mgmt.RequestCursorToken)
 		mgmt.GET("/kiro-auth-url", s.mgmt.RequestKiroToken)
+		mgmt.GET("/qwen-auth-url", s.mgmt.RequestQwenToken)
+		mgmt.GET("/iflow-auth-url", s.mgmt.RequestIFlowToken)
+		mgmt.POST("/iflow-auth-url", s.mgmt.RequestIFlowCookieToken)
+		mgmt.GET("/codebuddy-auth-url", s.mgmt.RequestCodeBuddyToken)
+		mgmt.GET("/codebuddy-intl-auth-url", s.mgmt.RequestCodeBuddyIntlToken)
 		mgmt.GET("/get-auth-status", s.mgmt.GetAuthStatus)
 		mgmt.DELETE("/oauth-session", s.mgmt.CancelAuthSession)
 	}

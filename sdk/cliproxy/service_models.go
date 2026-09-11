@@ -152,6 +152,18 @@ func (s *Service) registerModelsForAuthWithCache(ctx context.Context, a *coreaut
 	case "kiro":
 		models = registry.GetKiroModels()
 		models = applyExcludedModels(models, excluded)
+	case "qwen":
+		models = registry.GetQwenModels()
+		models = applyExcludedModels(models, excluded)
+	case "iflow":
+		models = registry.GetIFlowModels()
+		models = applyExcludedModels(models, excluded)
+	case "codebuddy":
+		models = registry.GetCodeBuddyModels()
+		models = applyExcludedModels(models, excluded)
+	case "codebuddy-intl":
+		models = registry.GetCodeBuddyIntlModels()
+		models = applyExcludedModels(models, excluded)
 	case "xai":
 		models = registry.GetXAIModels()
 		if entry := s.resolveConfigXAIKey(a); entry != nil {

@@ -92,6 +92,11 @@ func main() {
 	var kiroIDCStartURL string
 	var kiroIDCRegion string
 	var kiroIDCFlow string
+	var qwenLogin bool
+	var iflowLogin bool
+	var iflowCookie bool
+	var codeBuddyLogin bool
+	var codeBuddyIntlLogin bool
 	var vertexImport string
 	var vertexImportPrefix string
 	var configPath string
@@ -121,6 +126,11 @@ func main() {
 	flag.StringVar(&kiroIDCStartURL, "kiro-idc-start-url", "", "IDC start URL (required with -kiro-idc-login)")
 	flag.StringVar(&kiroIDCRegion, "kiro-idc-region", "", "IDC region (default: us-east-1)")
 	flag.StringVar(&kiroIDCFlow, "kiro-idc-flow", "", "IDC flow type: authcode (default) or device")
+	flag.BoolVar(&qwenLogin, "qwen-login", false, "Login to Qwen using OAuth device flow")
+	flag.BoolVar(&iflowLogin, "iflow-login", false, "Login to iFlow using OAuth")
+	flag.BoolVar(&iflowCookie, "iflow-cookie", false, "Login to iFlow using Cookie")
+	flag.BoolVar(&codeBuddyLogin, "codebuddy-login", false, "Login to CodeBuddy using browser OAuth flow")
+	flag.BoolVar(&codeBuddyIntlLogin, "codebuddy-intl-login", false, "Login to CodeBuddy International (codebuddy.ai) using browser OAuth flow")
 	flag.StringVar(&configPath, "config", DefaultConfigPath, "Configure File Path")
 	flag.StringVar(&vertexImport, "vertex-import", "", "Import Vertex service account key JSON file")
 	flag.StringVar(&vertexImportPrefix, "vertex-import-prefix", "", "Prefix for Vertex model namespacing (use with -vertex-import)")
@@ -609,7 +619,7 @@ func main() {
 		CallbackPort: oauthCallbackPort,
 	}
 
-	commandMode := vertexImport != "" || antigravityLogin || codexLogin || codexDeviceLogin || claudeLogin || kimiLogin || xaiLogin || githubCopilotLogin || cursorLogin || kiroLogin || kiroAWSAuthCode || kiroImport || kiroIDCLogin || kiroCLILogin
+	commandMode := vertexImport != "" || antigravityLogin || codexLogin || codexDeviceLogin || claudeLogin || kimiLogin || xaiLogin || githubCopilotLogin || cursorLogin || kiroLogin || kiroAWSAuthCode || kiroImport || kiroIDCLogin || kiroCLILogin || qwenLogin || iflowLogin || iflowCookie || codeBuddyLogin || codeBuddyIntlLogin
 	cloudConfigMissing := isCloudDeploy && !configFileExists
 	homeMode := configLoadedFromHome || (cfg != nil && cfg.Home.Enabled)
 	exampleAPIKeySafeMode := shouldEnableExampleAPIKeySafeMode(cfg, commandMode, tuiMode, standalone, cloudConfigMissing, homeMode)
@@ -702,6 +712,16 @@ func main() {
 	} else if kiroCLILogin {
 		kiro.InitFingerprintConfig(cfg)
 		cmd.DoKiroCLILogin(cfg, options)
+	} else if qwenLogin {
+		cmd.DoQwenLogin(cfg, options)
+	} else if iflowLogin {
+		cmd.DoIFlowLogin(cfg, options)
+	} else if iflowCookie {
+		cmd.DoIFlowCookieAuth(cfg, options)
+	} else if codeBuddyLogin {
+		cmd.DoCodeBuddyLogin(cfg, options)
+	} else if codeBuddyIntlLogin {
+		cmd.DoCodeBuddyIntlLogin(cfg, options)
 	} else {
 		// In cloud deploy mode without config file, just wait for shutdown signals
 		if isCloudDeploy && !configFileExists {

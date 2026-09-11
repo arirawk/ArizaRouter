@@ -370,6 +370,14 @@ func NormalizeOAuthProvider(provider string) (string, error) {
 		return "xai", nil
 	case "kiro":
 		return "kiro", nil
+	case "qwen":
+		return "qwen", nil
+	case "iflow", "i-flow":
+		return "iflow", nil
+	case "codebuddy":
+		return "codebuddy", nil
+	case "codebuddy-intl":
+		return "codebuddy-intl", nil
 	default:
 		return "", errUnsupportedOAuthFlow
 	}

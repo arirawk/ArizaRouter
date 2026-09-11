@@ -232,3 +232,61 @@ func TestGetStaticModelDefinitionsByChannelSupportsKiro(t *testing.T) {
 		}
 	}
 }
+
+func TestGetStaticModelDefinitionsByChannelSupportsQwen(t *testing.T) {
+	models := GetStaticModelDefinitionsByChannel("qwen")
+	if len(models) != 1 {
+		t.Fatalf("GetStaticModelDefinitionsByChannel(qwen) returned %d models, want 1", len(models))
+	}
+	for _, m := range models {
+		if m.OwnedBy != "qwen" || m.Type != "qwen" {
+			t.Fatalf("model %s owned_by=%q type=%q, want qwen", m.ID, m.OwnedBy, m.Type)
+		}
+	}
+	if info := LookupStaticModelInfo("coder-model"); info == nil {
+		t.Fatal("LookupStaticModelInfo(coder-model) = nil")
+	}
+}
+
+func TestGetStaticModelDefinitionsByChannelSupportsIFlow(t *testing.T) {
+	models := GetStaticModelDefinitionsByChannel("iflow")
+	if len(models) != 15 {
+		t.Fatalf("GetStaticModelDefinitionsByChannel(iflow) returned %d models, want 15", len(models))
+	}
+	for _, m := range models {
+		if m.OwnedBy != "iflow" || m.Type != "iflow" {
+			t.Fatalf("model %s owned_by=%q type=%q, want iflow", m.ID, m.OwnedBy, m.Type)
+		}
+	}
+	info := LookupStaticModelInfo("glm-4.6")
+	if info == nil {
+		t.Fatal("LookupStaticModelInfo(glm-4.6) = nil")
+	}
+	if info.Thinking == nil || len(info.Thinking.Levels) == 0 {
+		t.Fatalf("glm-4.6 thinking = %+v, want level-based thinking support", info.Thinking)
+	}
+}
+
+func TestGetStaticModelDefinitionsByChannelSupportsCodeBuddy(t *testing.T) {
+	models := GetStaticModelDefinitionsByChannel("codebuddy")
+	if len(models) != 10 {
+		t.Fatalf("GetStaticModelDefinitionsByChannel(codebuddy) returned %d models, want 10", len(models))
+	}
+	for _, m := range models {
+		if m.Type != "codebuddy" {
+			t.Fatalf("model %s type=%q, want codebuddy", m.ID, m.Type)
+		}
+	}
+	intl := GetStaticModelDefinitionsByChannel("codebuddy-intl")
+	if len(intl) == 0 {
+		t.Fatal("GetStaticModelDefinitionsByChannel(codebuddy-intl) returned no models")
+	}
+	for _, m := range intl {
+		if m.Type != "codebuddy-intl" {
+			t.Fatalf("model %s type=%q, want codebuddy-intl", m.ID, m.Type)
+		}
+	}
+	if info := LookupStaticModelInfo("glm-5v-turbo"); info == nil {
+		t.Fatal("LookupStaticModelInfo(glm-5v-turbo) = nil")
+	}
+}
