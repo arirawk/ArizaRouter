@@ -48,6 +48,16 @@ var (
 	ErrSlowDown             = errors.New("slow_down")
 )
 
+// Exported SSO OIDC defaults for callers outside the package (management API).
+const (
+	// BuilderIDStartURL is the AWS Builder ID start URL used for device authorization.
+	BuilderIDStartURL = builderIDStartURL
+	// DefaultIDCRegion is the default AWS SSO OIDC region.
+	DefaultIDCRegion = defaultIDCRegion
+	// DefaultPollInterval is the default device-code polling interval.
+	DefaultPollInterval = pollInterval
+)
+
 type SSOOIDCClient struct {
 	httpClient *http.Client
 	cfg        *config.Config

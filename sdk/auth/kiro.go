@@ -61,8 +61,25 @@ func (a *KiroAuthenticator) RefreshLead() *time.Duration {
 	return &d
 }
 
-// createAuthRecord creates an auth record from token data.
+// createAuthRecord creates an auth record from token data and reports success on stdout.
 func (a *KiroAuthenticator) createAuthRecord(tokenData *kiroauth.KiroTokenData, source string) (*coreauth.Auth, error) {
+	record := NewKiroAuthRecord(tokenData, source)
+
+	if tokenData.Email != "" {
+		fmt.Printf("\n✓ Kiro authentication completed successfully! (Account: %s)\n", tokenData.Email)
+	} else {
+		fmt.Println("\n✓ Kiro authentication completed successfully!")
+	}
+
+	return record, nil
+}
+
+// NewKiroAuthRecord builds the auth record persisted for a Kiro token obtained
+// through the AWS Builder ID / IDC / CLI flows. source names the login flow
+// ("aws", "cli", ...) and is used for the label and file name; IDC tokens are
+// always labelled kiro-idc. It is shared by the CLI login and the management
+// kiro-auth-url handler so both write the same file shape.
+func NewKiroAuthRecord(tokenData *kiroauth.KiroTokenData, source string) *coreauth.Auth {
 	// Parse expires_at
 	expiresAt, err := time.Parse(time.RFC3339, tokenData.ExpiresAt)
 	if err != nil {
@@ -150,13 +167,7 @@ func (a *KiroAuthenticator) createAuthRecord(tokenData *kiroauth.KiroTokenData, 
 		NextRefreshAfter: expiresAt.Add(-20 * time.Minute),
 	}
 
-	if tokenData.Email != "" {
-		fmt.Printf("\n✓ Kiro authentication completed successfully! (Account: %s)\n", tokenData.Email)
-	} else {
-		fmt.Println("\n✓ Kiro authentication completed successfully!")
-	}
-
-	return record, nil
+	return record
 }
 
 // Login performs OAuth login for Kiro with AWS (Builder ID or IDC).
