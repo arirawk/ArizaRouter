@@ -25,6 +25,10 @@ const (
 	pollMaxDelay         = 10 * time.Second
 	pollBackoffMultiply  = 1.2
 	maxConsecutiveErrors = 10
+
+	// MaxPollDuration is the upper bound PollForAuth waits for the user to
+	// finish the browser login before giving up.
+	MaxPollDuration = time.Duration(pollMaxAttempts) * pollMaxDelay
 )
 
 // AuthParams holds the PKCE parameters for Cursor login.
