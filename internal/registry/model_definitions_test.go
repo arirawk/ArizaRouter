@@ -232,3 +232,18 @@ func TestGetStaticModelDefinitionsByChannelSupportsKiro(t *testing.T) {
 		}
 	}
 }
+
+func TestGetStaticModelDefinitionsByChannelSupportsCline(t *testing.T) {
+	models := GetStaticModelDefinitionsByChannel("cline")
+	if len(models) == 0 {
+		t.Fatal("GetStaticModelDefinitionsByChannel(cline) returned no models")
+	}
+	for _, m := range models {
+		if m.OwnedBy != "cline" || m.Type != "cline" {
+			t.Fatalf("model %s owned_by=%q type=%q, want cline", m.ID, m.OwnedBy, m.Type)
+		}
+	}
+	if info := LookupStaticModelInfo("cline/auto"); info == nil || info.Type != "cline" {
+		t.Fatalf("LookupStaticModelInfo(cline/auto) = %+v", info)
+	}
+}
