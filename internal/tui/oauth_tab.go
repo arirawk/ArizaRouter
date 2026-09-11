@@ -28,6 +28,7 @@ var oauthProviders = []oauthProvider{
 	{"GitHub Copilot", "github-copilot-auth-url", "🐙", true},
 	{"Cursor", "cursor-auth-url", "🟦", true},
 	{"Qwen", "qwen-auth-url", "🟨", true},
+	{"iFlow", "iflow-auth-url", "⬜", false},
 }
 
 // oauthTabModel handles OAuth login flows.
@@ -367,6 +368,8 @@ func (m oauthTabModel) submitCallback(callbackURL string) tea.Cmd {
 					providerKey = "cursor"
 				case "qwen-auth-url":
 					providerKey = "qwen"
+				case "iflow-auth-url":
+					providerKey = "iflow"
 				}
 				break
 			}
