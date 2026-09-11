@@ -93,6 +93,7 @@ func TestRegisterAvailableExecutors(t *testing.T) {
 		"kiro",
 		"cline",
 		"kilo",
+		"gitlab",
 		"openai-compatibility",
 		"plugin-provider",
 	}
@@ -337,5 +338,34 @@ func TestRegisterExecutorForAuth_Kilo(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("kilo missing from baselineExecutorAuths()")
+	}
+}
+
+func TestRegisterExecutorForAuth_GitLab(t *testing.T) {
+	manager := coreauth.NewManager(nil, nil, nil)
+	service := &Service{cfg: &config.Config{}, coreManager: manager}
+
+	service.registerExecutorForAuth(&coreauth.Auth{ID: "gitlab-duo-user-pat.json", Provider: "gitlab"}, false)
+
+	got, ok := manager.Executor("gitlab")
+	if !ok {
+		t.Fatal("gitlab executor was not registered")
+	}
+	if _, isGitLab := got.(*runtimeexecutor.GitLabExecutor); !isGitLab {
+		t.Fatalf("registered executor is %T, want *executor.GitLabExecutor", got)
+	}
+	if got.Identifier() != "gitlab" {
+		t.Fatalf("executor identifier = %q, want gitlab", got.Identifier())
+	}
+
+	found := false
+	for _, auth := range baselineExecutorAuths() {
+		if auth != nil && auth.Provider == "gitlab" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("gitlab missing from baselineExecutorAuths()")
 	}
 }

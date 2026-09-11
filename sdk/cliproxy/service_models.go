@@ -158,6 +158,9 @@ func (s *Service) registerModelsForAuthWithCache(ctx context.Context, a *coreaut
 	case "kilo":
 		models = s.kiloModels(ctx, a)
 		models = applyExcludedModels(models, excluded)
+	case "gitlab":
+		models = executor.GitLabModelsFromAuth(a)
+		models = applyExcludedModels(models, excluded)
 	case "xai":
 		models = registry.GetXAIModels()
 		if entry := s.resolveConfigXAIKey(a); entry != nil {
