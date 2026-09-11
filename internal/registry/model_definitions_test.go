@@ -192,3 +192,18 @@ func TestGetStaticModelDefinitionsByChannelSupportsCursor(t *testing.T) {
 		t.Fatalf("composer-2 thinking = %+v, want dynamic thinking support", info.Thinking)
 	}
 }
+
+func TestGetStaticModelDefinitionsByChannelSupportsQwen(t *testing.T) {
+	models := GetStaticModelDefinitionsByChannel("qwen")
+	if len(models) != 1 {
+		t.Fatalf("GetStaticModelDefinitionsByChannel(qwen) returned %d models, want 1", len(models))
+	}
+	for _, m := range models {
+		if m.OwnedBy != "qwen" || m.Type != "qwen" {
+			t.Fatalf("model %s owned_by=%q type=%q, want qwen", m.ID, m.OwnedBy, m.Type)
+		}
+	}
+	if info := LookupStaticModelInfo("coder-model"); info == nil {
+		t.Fatal("LookupStaticModelInfo(coder-model) = nil")
+	}
+}
