@@ -48,6 +48,39 @@ func (m *Manager) SetStore(store coreauth.Store) {
 }
 
 // Login executes the provider login flow and persists the resulting auth record.
+// SaveAuth persists an auth record produced outside of Login (for example the
+// Kiro import and auth-code flows that call authenticator methods directly).
+// Existing on-disk metadata for the same file is merged like Login does.
+func (m *Manager) SaveAuth(record *coreauth.Auth, cfg *config.Config) (string, error) {
+	if record == nil {
+		return "", fmt.Errorf("cliproxy auth: nil record")
+	}
+	if m.store == nil {
+		return "", fmt.Errorf("cliproxy auth: no store configured")
+	}
+	if cfg != nil {
+		if dirSetter, ok := m.store.(interface{ SetBaseDir(string) }); ok {
+			dirSetter.SetBaseDir(cfg.AuthDir)
+		}
+		if strings.TrimSpace(cfg.AuthDir) != "" {
+			targetFile := record.FileName
+			if targetFile == "" {
+				targetFile = record.ID
+			}
+			if targetFile != "" {
+				fullPath := filepath.Join(cfg.AuthDir, targetFile)
+				if raw, errRead := os.ReadFile(fullPath); errRead == nil && len(raw) > 0 {
+					var existingMap map[string]any
+					if errUnmarshal := json.Unmarshal(raw, &existingMap); errUnmarshal == nil && len(existingMap) > 0 {
+						coreauth.MergeExistingAuthMetadata(record, existingMap)
+					}
+				}
+			}
+		}
+	}
+	return m.store.Save(context.Background(), record)
+}
+
 func (m *Manager) Login(ctx context.Context, provider string, cfg *config.Config, opts *LoginOptions) (*coreauth.Auth, string, error) {
 	auth, ok := m.authenticators[provider]
 	if !ok {

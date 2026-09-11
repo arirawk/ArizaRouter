@@ -19,6 +19,7 @@ import (
 	"github.com/joho/godotenv"
 	configaccess "github.com/router-for-me/CLIProxyAPI/v7/internal/access/config_access"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/api"
+	"github.com/router-for-me/CLIProxyAPI/v7/internal/auth/kiro"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/buildinfo"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/cmd"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/config"
@@ -82,6 +83,14 @@ func main() {
 	var kimiLogin bool
 	var xaiLogin bool
 	var githubCopilotLogin bool
+	var kiroLogin bool
+	var kiroAWSAuthCode bool
+	var kiroImport bool
+	var kiroIDCLogin bool
+	var kiroCLILogin bool
+	var kiroIDCStartURL string
+	var kiroIDCRegion string
+	var kiroIDCFlow string
 	var vertexImport string
 	var vertexImportPrefix string
 	var configPath string
@@ -102,6 +111,14 @@ func main() {
 	flag.BoolVar(&kimiLogin, "kimi-login", false, "Login to Kimi using OAuth")
 	flag.BoolVar(&xaiLogin, "xai-login", false, "Login to xAI using OAuth")
 	flag.BoolVar(&githubCopilotLogin, "github-copilot-login", false, "Login to GitHub Copilot using OAuth device flow")
+	flag.BoolVar(&kiroLogin, "kiro-login", false, "Login to Kiro using AWS Builder ID or IAM Identity Center (device code flow)")
+	flag.BoolVar(&kiroAWSAuthCode, "kiro-aws-authcode", false, "Login to Kiro using AWS Builder ID (authorization code flow, browser callback)")
+	flag.BoolVar(&kiroImport, "kiro-import", false, "Import Kiro token from Kiro IDE (~/.aws/sso/cache/kiro-auth-token.json)")
+	flag.BoolVar(&kiroIDCLogin, "kiro-idc-login", false, "Login to Kiro using IAM Identity Center (IDC)")
+	flag.BoolVar(&kiroCLILogin, "kiro-cli-login", false, "Login to Kiro using the native Kiro CLI OAuth flow")
+	flag.StringVar(&kiroIDCStartURL, "kiro-idc-start-url", "", "IDC start URL (required with -kiro-idc-login)")
+	flag.StringVar(&kiroIDCRegion, "kiro-idc-region", "", "IDC region (default: us-east-1)")
+	flag.StringVar(&kiroIDCFlow, "kiro-idc-flow", "", "IDC flow type: authcode (default) or device")
 	flag.StringVar(&configPath, "config", DefaultConfigPath, "Configure File Path")
 	flag.StringVar(&vertexImport, "vertex-import", "", "Import Vertex service account key JSON file")
 	flag.StringVar(&vertexImportPrefix, "vertex-import-prefix", "", "Prefix for Vertex model namespacing (use with -vertex-import)")
@@ -590,7 +607,7 @@ func main() {
 		CallbackPort: oauthCallbackPort,
 	}
 
-	commandMode := vertexImport != "" || antigravityLogin || codexLogin || codexDeviceLogin || claudeLogin || kimiLogin || xaiLogin || githubCopilotLogin
+	commandMode := vertexImport != "" || antigravityLogin || codexLogin || codexDeviceLogin || claudeLogin || kimiLogin || xaiLogin || githubCopilotLogin || kiroLogin || kiroAWSAuthCode || kiroImport || kiroIDCLogin || kiroCLILogin
 	cloudConfigMissing := isCloudDeploy && !configFileExists
 	homeMode := configLoadedFromHome || (cfg != nil && cfg.Home.Enabled)
 	exampleAPIKeySafeMode := shouldEnableExampleAPIKeySafeMode(cfg, commandMode, tuiMode, standalone, cloudConfigMissing, homeMode)
@@ -666,6 +683,21 @@ func main() {
 		cmd.DoXAILogin(cfg, options)
 	} else if githubCopilotLogin {
 		cmd.DoGitHubCopilotLogin(cfg, options)
+	} else if kiroLogin {
+		kiro.InitFingerprintConfig(cfg)
+		cmd.DoKiroAWSLogin(cfg, options)
+	} else if kiroAWSAuthCode {
+		kiro.InitFingerprintConfig(cfg)
+		cmd.DoKiroAWSAuthCodeLogin(cfg, options)
+	} else if kiroImport {
+		kiro.InitFingerprintConfig(cfg)
+		cmd.DoKiroImport(cfg, options)
+	} else if kiroIDCLogin {
+		kiro.InitFingerprintConfig(cfg)
+		cmd.DoKiroIDCLogin(cfg, options, kiroIDCStartURL, kiroIDCRegion, kiroIDCFlow)
+	} else if kiroCLILogin {
+		kiro.InitFingerprintConfig(cfg)
+		cmd.DoKiroCLILogin(cfg, options)
 	} else {
 		// In cloud deploy mode without config file, just wait for shutdown signals
 		if isCloudDeploy && !configFileExists {
@@ -756,6 +788,12 @@ func main() {
 			managementasset.StartAutoUpdater(context.Background(), configFilePath)
 			misc.StartAntigravityVersionUpdater(context.Background())
 			startModelCatalogUpdaters(localModel, cfg.Home.Enabled)
+
+			if cfg.AuthDir != "" {
+				kiro.InitializeAndStart(cfg.AuthDir, cfg)
+				defer kiro.StopGlobalRefreshManager()
+			}
+
 			cmd.StartServiceWithPluginHost(cfg, configFilePath, password, pluginHost, serverOptions...)
 		}
 	}
