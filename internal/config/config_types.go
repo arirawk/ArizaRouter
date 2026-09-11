@@ -484,6 +484,32 @@ func (m ClaudeModel) GetThinking() *registry.ThinkingSupport { return m.Thinking
 
 // CodexKey represents the configuration for a Codex API key,
 // including the API key itself and an optional base URL for the API endpoint.
+// KiroKey represents Kiro (AWS CodeWhisperer) authentication settings.
+type KiroKey struct {
+	TokenFile         string `yaml:"token-file,omitempty" json:"token-file,omitempty"`
+	AccessToken       string `yaml:"access-token,omitempty" json:"access-token,omitempty"`
+	Comment           string `yaml:"comment,omitempty" json:"comment,omitempty"`
+	RefreshToken      string `yaml:"refresh-token,omitempty" json:"refresh-token,omitempty"`
+	ProfileArn        string `yaml:"profile-arn,omitempty" json:"profile-arn,omitempty"`
+	Region            string `yaml:"region,omitempty" json:"region,omitempty"`
+	StartURL          string `yaml:"start-url,omitempty" json:"start-url,omitempty"`
+	ProxyURL          string `yaml:"proxy-url,omitempty" json:"proxy-url,omitempty"`
+	AgentTaskType     string `yaml:"agent-task-type,omitempty" json:"agent-task-type,omitempty"`
+	PreferredEndpoint string `yaml:"preferred-endpoint,omitempty" json:"preferred-endpoint,omitempty"`
+}
+
+// KiroFingerprintConfig fixes the client fingerprint used for Kiro requests.
+type KiroFingerprintConfig struct {
+	OIDCSDKVersion      string `yaml:"oidc-sdk-version,omitempty" json:"oidc-sdk-version,omitempty"`
+	RuntimeSDKVersion   string `yaml:"runtime-sdk-version,omitempty" json:"runtime-sdk-version,omitempty"`
+	StreamingSDKVersion string `yaml:"streaming-sdk-version,omitempty" json:"streaming-sdk-version,omitempty"`
+	OSType              string `yaml:"os-type,omitempty" json:"os-type,omitempty"`
+	OSVersion           string `yaml:"os-version,omitempty" json:"os-version,omitempty"`
+	NodeVersion         string `yaml:"node-version,omitempty" json:"node-version,omitempty"`
+	KiroVersion         string `yaml:"kiro-version,omitempty" json:"kiro-version,omitempty"`
+	KiroHash            string `yaml:"kiro-hash,omitempty" json:"kiro-hash,omitempty"`
+}
+
 type CodexKey struct {
 	// APIKey is the authentication key for accessing Codex API services.
 	APIKey string `yaml:"api-key" json:"api-key"`
