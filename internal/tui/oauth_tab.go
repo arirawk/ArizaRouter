@@ -29,6 +29,8 @@ var oauthProviders = []oauthProvider{
 	{"Cursor", "cursor-auth-url", "🟦", true},
 	{"Qwen", "qwen-auth-url", "🟨", true},
 	{"iFlow", "iflow-auth-url", "⬜", false},
+	{"CodeBuddy", "codebuddy-auth-url", "🟥", true},
+	{"CodeBuddy International", "codebuddy-intl-auth-url", "🟥", true},
 }
 
 // oauthTabModel handles OAuth login flows.
@@ -370,6 +372,10 @@ func (m oauthTabModel) submitCallback(callbackURL string) tea.Cmd {
 					providerKey = "qwen"
 				case "iflow-auth-url":
 					providerKey = "iflow"
+				case "codebuddy-auth-url":
+					providerKey = "codebuddy"
+				case "codebuddy-intl-auth-url":
+					providerKey = "codebuddy-intl"
 				}
 				break
 			}
