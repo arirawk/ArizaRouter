@@ -9,6 +9,7 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/constant"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/modelconfig"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/registry"
+	"github.com/router-for-me/CLIProxyAPI/v7/internal/runtime/executor"
 	coreauth "github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/auth"
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/config"
 )
@@ -142,6 +143,9 @@ func (s *Service) registerModelsForAuthWithCache(ctx context.Context, a *coreaut
 		models = applyExcludedModels(models, excluded)
 	case "kimi":
 		models = registry.GetKimiModels()
+		models = applyExcludedModels(models, excluded)
+	case "github-copilot":
+		models = s.githubCopilotModels(ctx, a)
 		models = applyExcludedModels(models, excluded)
 	case "xai":
 		models = registry.GetXAIModels()
@@ -1038,4 +1042,22 @@ func applyOAuthModelAliasEntries(aliases []config.OAuthModelAlias, models []*Mod
 		}
 	}
 	return out
+}
+
+// githubCopilotModelFetchTimeout bounds the live /models lookup so a slow
+// GitHub endpoint cannot stall auth registration; the static list is the fallback.
+const githubCopilotModelFetchTimeout = 15 * time.Second
+
+// githubCopilotModels prefers the live Copilot /models listing for the auth's
+// account and falls back to the static definitions on any failure.
+func (s *Service) githubCopilotModels(ctx context.Context, a *coreauth.Auth) []*ModelInfo {
+	if a == nil || a.AuthKind() == "apikey" {
+		return registry.GetGitHubCopilotModels()
+	}
+	fetchCtx, cancel := context.WithTimeout(ctx, githubCopilotModelFetchTimeout)
+	defer cancel()
+	s.cfgMu.RLock()
+	cfg := s.cfg
+	s.cfgMu.RUnlock()
+	return executor.FetchGitHubCopilotModels(fetchCtx, a, cfg)
 }
