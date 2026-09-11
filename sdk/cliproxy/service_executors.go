@@ -213,6 +213,8 @@ func baselineExecutorAuths() []*coreauth.Auth {
 		"cursor",
 		"qwen",
 		"iflow",
+		"codebuddy",
+		"codebuddy-intl",
 		"openai-compatibility",
 	}
 	auths := make([]*coreauth.Auth, 0, len(providers))
@@ -315,6 +317,10 @@ func (s *Service) registerExecutorForAuth(a *coreauth.Auth, forceReplace bool) {
 		s.coreManager.RegisterExecutor(executor.NewQwenExecutor(cfg))
 	case "iflow":
 		s.coreManager.RegisterExecutor(executor.NewIFlowExecutor(cfg))
+	case "codebuddy":
+		s.coreManager.RegisterExecutor(executor.NewCodeBuddyExecutor(cfg))
+	case "codebuddy-intl":
+		s.coreManager.RegisterExecutor(executor.NewCodeBuddyIntlExecutor(cfg))
 	default:
 		providerKey := strings.ToLower(strings.TrimSpace(a.Provider))
 		if providerKey == "" {
