@@ -23,6 +23,13 @@ import (
 )
 
 func (w *Watcher) reloadClients(rescanAuth bool, affectedOAuthProviders []string, forceAuthRefresh bool) {
+	// A config write and the auth-dir event it triggers (or two config writes a
+	// second apart) used to run two full loads concurrently; each unregisters
+	// and re-registers the same auth IDs, and the interleaving left the model
+	// registry without the OpenAI-compatible models ("unknown provider for
+	// model"). Full loads are cheap enough to run one after the other.
+	w.reloadClientsMu.Lock()
+	defer w.reloadClientsMu.Unlock()
 	log.Debugf("starting full client load process")
 
 	w.clientsMutex.RLock()

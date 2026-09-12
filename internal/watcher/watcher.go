@@ -38,6 +38,7 @@ type Watcher struct {
 	authRescanMu      sync.Mutex
 	configReloadMu    sync.Mutex
 	configReloadTimer *time.Timer
+	reloadClientsMu   sync.Mutex // serializes full client loads; overlapping loads race on the model registry
 	serverUpdateMu    sync.Mutex
 	serverUpdateTimer *time.Timer
 	serverUpdateLast  time.Time
