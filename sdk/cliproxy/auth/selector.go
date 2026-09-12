@@ -19,6 +19,7 @@ import (
 
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/credentialweight"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/logging"
+	"github.com/router-for-me/CLIProxyAPI/v7/internal/registry"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/thinking"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/executor"
 	cliproxysession "github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/session"
@@ -408,6 +409,77 @@ func canonicalModelKey(model string) string {
 		return model
 	}
 	return modelName
+}
+
+// sessionBindingEligible reports whether a session or LCP binding to auth may be honoured
+// for the requested provider. A cached binding was created by an earlier request and must be
+// re-validated against the current one: the credential must not be disabled and must belong
+// to the requested provider family. Model eligibility is enforced by membership in the
+// candidate list returned by modelEligibleAuths, so a binding that fails either check is
+// treated as a miss: the fallback selector chooses a credential that can serve the model and
+// the session is rebound to it.
+func sessionBindingEligible(auth *Auth, provider string) bool {
+	if auth == nil || auth.Disabled || auth.Status == StatusDisabled {
+		return false
+	}
+	provider = strings.ToLower(strings.TrimSpace(provider))
+	if provider != "" && provider != "mixed" {
+		if key := executorKeyFromAuth(auth); key != "" && key != provider {
+			return false
+		}
+	}
+	return true
+}
+
+// authAdvertisesModel reports whether the global model registry lists model for auth. It
+// returns true when the registry has no model list for the credential (plugin-managed or
+// test credentials) so the caller's candidate filtering stays authoritative.
+func authAdvertisesModel(auth *Auth, model string) bool {
+	modelKey := canonicalModelKey(model)
+	if auth == nil || modelKey == "" {
+		return true
+	}
+	reg := registry.GetGlobalRegistry()
+	if reg == nil || !reg.ClientHasModels(auth.ID) {
+		return true
+	}
+	if reg.ClientSupportsModel(auth.ID, modelKey) {
+		return true
+	}
+	stripped := canonicalModelKey(rewriteModelForAuth(model, auth))
+	return stripped != "" && stripped != modelKey && reg.ClientSupportsModel(auth.ID, stripped)
+}
+
+// modelEligibleAuths drops candidates the registry says cannot serve model, so a session
+// bound to one provider's credential is never reused for another provider's model id. It
+// returns the input unchanged when no candidate would remain, deferring to the caller's
+// candidate list (which the manager already filtered by route model) instead of failing.
+func modelEligibleAuths(auths []*Auth, model string) []*Auth {
+	if len(auths) == 0 || canonicalModelKey(model) == "" {
+		return auths
+	}
+	eligible := make([]*Auth, 0, len(auths))
+	for _, auth := range auths {
+		if auth != nil && !auth.Disabled && auth.Status != StatusDisabled && authAdvertisesModel(auth, model) {
+			eligible = append(eligible, auth)
+		}
+	}
+	if len(eligible) == 0 {
+		return auths
+	}
+	return eligible
+}
+
+// eligibleBoundAuth returns the candidate bound to authID when it is still among the
+// model-eligible candidates and eligible for the requested provider, or nil so the caller
+// treats the binding as a miss.
+func eligibleBoundAuth(eligible []*Auth, authID, provider string) *Auth {
+	for _, auth := range eligible {
+		if auth != nil && auth.ID == authID && sessionBindingEligible(auth, provider) {
+			return auth
+		}
+	}
+	return nil
 }
 
 func authWebsocketsEnabled(auth *Auth) bool {
@@ -1022,7 +1094,7 @@ func (s *SessionAffinitySelector) Pick(ctx context.Context, provider, model stri
 			return nil, errAvailable
 		}
 		entry.Debugf("session-affinity: no session ID extracted, falling back to default selector | provider=%s model=%s", provider, model)
-		return s.fallback.Pick(ctx, provider, model, opts, fallbackAuths)
+		return s.fallback.Pick(ctx, provider, model, opts, modelEligibleAuths(fallbackAuths, model))
 	}
 
 	// A single availability pass serves both lookups: the bound credential is validated against
@@ -1031,6 +1103,7 @@ func (s *SessionAffinitySelector) Pick(ctx context.Context, provider, model stri
 	if err != nil {
 		return nil, err
 	}
+	available = modelEligibleAuths(available, model)
 	fallbackAuths := highestPriorityAuths(available)
 
 	modelKey := canonicalModelKey(model)
@@ -1055,14 +1128,12 @@ func (s *SessionAffinitySelector) Pick(ctx context.Context, provider, model stri
 	}
 
 	if cachedAuthID, ok := s.cache.GetAndRefresh(cacheKey); ok {
-		for _, auth := range available {
-			if auth.ID == cachedAuthID {
-				bind(auth.ID)
-				entry.Infof("session-affinity: cache hit | session=%s auth=%s provider=%s model=%s", truncateSessionID(primaryID), auth.ID, provider, model)
-				return auth, nil
-			}
+		if auth := eligibleBoundAuth(available, cachedAuthID, provider); auth != nil {
+			bind(auth.ID)
+			entry.Infof("session-affinity: cache hit | session=%s auth=%s provider=%s model=%s", truncateSessionID(primaryID), auth.ID, provider, model)
+			return auth, nil
 		}
-		// Cached auth not available, reselect via fallback selector for even distribution
+		// Cached auth not available or no longer eligible for this model, reselect via fallback selector for even distribution
 		auth, err := s.fallback.Pick(ctx, provider, model, opts, fallbackAuths)
 		if err != nil {
 			return nil, err
@@ -1077,18 +1148,14 @@ func (s *SessionAffinitySelector) Pick(ctx context.Context, provider, model stri
 
 	if fallbackKey != "" {
 		if cachedAuthID, ok := s.cache.Get(fallbackKey); ok {
-			for _, auth := range available {
-				if auth.ID == cachedAuthID {
-					if !isSubagent || s.subagentAffinity {
-						bind(auth.ID)
-						if isFork {
-							entry.Infof("session-affinity: fork cache hit | session=%s parent=%s auth=%s provider=%s model=%s", truncateSessionID(primaryID), truncateSessionID(fallbackID), auth.ID, provider, model)
-						} else {
-							entry.Infof("session-affinity: fallback cache hit | session=%s fallback=%s auth=%s provider=%s model=%s", truncateSessionID(primaryID), truncateSessionID(fallbackID), auth.ID, provider, model)
-						}
-						return auth, nil
-					}
+			if auth := eligibleBoundAuth(available, cachedAuthID, provider); auth != nil && (!isSubagent || s.subagentAffinity) {
+				bind(auth.ID)
+				if isFork {
+					entry.Infof("session-affinity: fork cache hit | session=%s parent=%s auth=%s provider=%s model=%s", truncateSessionID(primaryID), truncateSessionID(fallbackID), auth.ID, provider, model)
+				} else {
+					entry.Infof("session-affinity: fallback cache hit | session=%s fallback=%s auth=%s provider=%s model=%s", truncateSessionID(primaryID), truncateSessionID(fallbackID), auth.ID, provider, model)
 				}
+				return auth, nil
 			}
 		}
 	}
@@ -1138,12 +1205,10 @@ func (s *SessionAffinitySelector) pickLCP(ctx context.Context, provider, model s
 	if errAvailable != nil {
 		return nil, true, errAvailable
 	}
+	available = modelEligibleAuths(available, model)
 
 	if match, ok := s.matcher.MatchFingerprints(namespace, fingerprints, minPrefixLength); ok {
-		for _, auth := range available {
-			if auth == nil || auth.ID != match.AuthID {
-				continue
-			}
+		if auth := eligibleBoundAuth(available, match.AuthID, provider); auth != nil {
 			if match.SessionID != "" {
 				opts.Metadata[cliproxyexecutor.LCPAffinitySessionIDMetadataKey] = match.SessionID
 				opts.Metadata[cliproxyexecutor.CanonicalSessionIDMetadataKey] = match.SessionID
@@ -1169,6 +1234,7 @@ func (s *SessionAffinitySelector) pickLCP(ctx context.Context, provider, model s
 			}
 			return auth, true, nil
 		}
+		entry.Infof("session-affinity: LCP cache hit but bound auth cannot serve request, reselecting | session=%s auth=%s provider=%s model=%s", truncateSessionID(match.SessionID), match.AuthID, provider, model)
 	}
 
 	fallbackAuths := highestPriorityAuths(available)
